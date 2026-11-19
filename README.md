@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://github.com/OlegChe77/okno-v-mir/releases/latest/download/okno-v-mir-v1.0.zip"><b>⬇ Скачать ZIP</b></a>
+  <a href="https://github.com/OlegChe77/okno-v-mir/releases/latest/download/okno-v-mir.zip"><b>⬇ Скачать ZIP</b></a>
 </p>
 
 <p align="center">
