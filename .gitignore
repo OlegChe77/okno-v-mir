@@ -12,3 +12,7 @@ tools/sheet.png
 # заметки для разработки и настройки редактора
 CLAUDE.md
 .claude/
+
+# портативный Python (скачивается при первом запуске)
+python/
+python.tmp/

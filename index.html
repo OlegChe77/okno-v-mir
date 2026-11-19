@@ -124,9 +124,16 @@
   .bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width .5s; }
 
   .list { list-style: none; margin: 0; padding: 6px; overflow-y: auto; flex: 1; }
-  .list li { display: grid; grid-template-columns: 38px 1fr 10px; gap: 10px; align-items: center;
+  .list li { display: grid; grid-template-columns: 38px 1fr 26px 10px; gap: 8px; align-items: center;
     padding: 7px 8px; border-radius: 9px; cursor: pointer; }
   .list li:hover { background: var(--panel-2); }
+  .list .fv { border: 0; background: none; padding: 2px; cursor: pointer; color: var(--muted); opacity: 0; display: grid; place-items: center; border-radius: 6px; }
+  .list li:hover .fv, .list .fv.on, .list .fv:focus-visible { opacity: 1; }
+  .list .fv:hover { color: var(--accent); }
+  .list .fv.on { color: var(--accent); }
+  .list .fv .icon { width: 18px; height: 18px; }
+  @media (hover: none) { .list .fv { opacity: .8; } }
+  .controls button.favbtn.on { color: var(--accent); border-color: var(--accent); }
   .list li.on { background: #1d2a42; box-shadow: inset 3px 0 0 var(--accent); }
   .list .ico { width: 38px; height: 28px; border-radius: 6px; background: #0d1320; display: grid; place-items: center; overflow: hidden; color: var(--muted); }
   .list .ico img { max-width: 100%; max-height: 100%; object-fit: contain; }
@@ -233,6 +240,8 @@
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></symbol>
   <symbol id="i-telegram" viewBox="0 0 24 24"><path d="M21.94 4.3 18.7 19.6c-.24 1.08-.88 1.35-1.79.84l-4.94-3.64-2.38 2.3c-.26.26-.49.48-1 .48l.36-5.04 9.17-8.28c.4-.36-.09-.55-.62-.2L6.17 13.2l-4.88-1.53c-1.06-.33-1.08-1.06.22-1.57L20.6 2.75c.88-.32 1.66.2 1.34 1.55z"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></symbol>
+  <symbol id="i-star-o" viewBox="0 0 24 24"><path d="M22 9.24l-7.19-.62L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27 18.18 21l-1.63-7.03L22 9.24zM12 15.4l-3.76 2.27 1-4.28-3.32-2.88 4.38-.38L12 6.1l1.71 4.04 4.38.38-3.32 2.88 1 4.28L12 15.4z"/></symbol>
   <symbol id="i-all" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm6.9 6h-2.95a15.6 15.6 0 0 0-1.38-3.56A8.03 8.03 0 0 1 18.9 8zM12 4.04c.83 1.2 1.48 2.53 1.91 3.96h-3.82c.43-1.43 1.08-2.76 1.91-3.96zM4.26 14a8.2 8.2 0 0 1 0-4h3.38a16.5 16.5 0 0 0 0 4H4.26zm.82 2h2.95c.32 1.25.78 2.45 1.38 3.56A7.99 7.99 0 0 1 5.08 16zm2.95-8H5.08a7.99 7.99 0 0 1 4.33-3.56A15.6 15.6 0 0 0 8.03 8zM12 19.96c-.83-1.2-1.48-2.53-1.91-3.96h3.82c-.43 1.43-1.08 2.76-1.91 3.96zM14.34 14H9.66a14.7 14.7 0 0 1 0-4h4.68a14.7 14.7 0 0 1 0 4zm.25 5.56c.6-1.11 1.06-2.31 1.38-3.56h2.95a8.03 8.03 0 0 1-4.33 3.56zM16.36 14a16.5 16.5 0 0 0 0-4h3.38a8.2 8.2 0 0 1 0 4h-3.38z"/></symbol>
   <symbol id="i-tv" viewBox="0 0 24 24"><path d="M21 6h-7.59l3.3-3.29-.71-.71L12 5.59 8 2l-.71.71L10.59 6H3a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2zm0 13H3V8h18v11z"/></symbol>
   <symbol id="i-cam" viewBox="0 0 24 24"><path d="M17 10.5V7a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3.5l4 4v-11l-4 4z"/></symbol>
@@ -254,6 +263,7 @@
     <button role="tab" data-mode="all"><svg class="icon"><use href="#i-all"/></svg>Всё</button>
     <button role="tab" data-mode="tv"><svg class="icon"><use href="#i-tv"/></svg>ТВ</button>
     <button role="tab" data-mode="cam"><svg class="icon"><use href="#i-cam"/></svg>Камеры</button>
+    <button role="tab" data-mode="fav" title="Ваши избранные каналы и камеры"><svg class="icon"><use href="#i-star"/></svg>Избранное</button>
     <button role="tab" data-mode="wall"><svg class="icon"><use href="#i-grid"/></svg>Стена</button>
   </nav>
   <div class="spacer"></div>
@@ -313,8 +323,9 @@
       <button id="bPrev" title="Предыдущий (↑)"><svg class="icon"><use href="#i-prev"/></svg>Пред.</button>
       <button id="bRandom" class="primary" title="Случайное окно (R)"><svg class="icon"><use href="#i-shuffle"/></svg>Случайное окно</button>
       <button id="bNext" title="Следующий (↓)">След.<svg class="icon"><use href="#i-next"/></svg></button>
+      <button id="bFav" class="favbtn" title="В избранное / убрать (S)"><svg class="icon"><use href="#i-star-o"/></svg><span>В избранное</span></button>
       <button id="bFull" title="Во весь экран (F)"><svg class="icon"><use href="#i-full"/></svg>Экран</button>
-      <span class="keys"><kbd>↑</kbd><kbd>↓</kbd> листать · <kbd>R</kbd> случайно · <kbd>F</kbd> экран · <kbd>M</kbd> звук · <kbd>←</kbd><kbd>→</kbd> громкость · <kbd>пробел</kbd> пауза · <kbd>W</kbd> стена</span>
+      <span class="keys"><kbd>↑</kbd><kbd>↓</kbd> листать · <kbd>R</kbd> случайно · <kbd>F</kbd> экран · <kbd>S</kbd> избранное · <kbd>M</kbd> звук · <kbd>←</kbd><kbd>→</kbd> громкость · <kbd>пробел</kbd> пауза · <kbd>W</kbd> стена</span>
     </div>
   </main>
 </div>
@@ -388,7 +399,10 @@ const regBtn = $("#regBtn");
 let adultOn = false, adultUser = "";
 const allowed = it => !it.ad || adultOn;
 // 18+ живут только во вкладке «18+», а там — только они
-const inMode = it => (mode === "adult") === !!it.ad;
+const inMode = it => mode === "fav" ? true : (mode === "adult") === !!it.ad;
+// Избранное: список ссылок it.u (id в каталоге между запусками не постоянны), порядок — как добавляли
+const favs = new Set(store.get("okno.favs", []));
+const isFav = it => !!it && favs.has(it.u);
 const listable = it => allowed(it) && inMode(it);
 
 let ITEMS = [], view = [], shown = PAGE, current = null, curV = null;
@@ -458,6 +472,7 @@ function kindFor(m) { return m === "tv" ? "tv" : (m === "cam" || m === "wall") ?
 function effCat() { const c = store.get("okno.cat", null); return c === null ? (mode === "wall" ? "view" : "") : c; }
 function passBase(it, kind, cat) {
   if (!listable(it)) return false;
+  if (mode === "fav") return isFav(it);
   if (kind && it.k !== kind) return false;
   if (it.k !== "cam") return true;
   if (cat && it.cat !== cat) return false;
@@ -468,7 +483,7 @@ const hasTopic = (it, t) => !t || (it.t && it.t.includes(t));
 // Страна и тема работают вместе: счётчики страны учитывают тему, счётчики темы — страну.
 function buildFacets() {
   const kind = kindFor(mode), cat = effCat();
-  catSel.value = cat; catSel.hidden = mode === "tv" || mode === "adult";
+  catSel.value = cat; catSel.hidden = mode === "tv" || mode === "adult" || mode === "fav";
   const base = ITEMS.filter(it => passBase(it, kind, cat));
   let countries, topics;
   for (let pass = 0; pass < 2; pass++) {
@@ -500,8 +515,8 @@ function buildFacets() {
 function applyFilter() {
   const q = norm(qInput.value.trim()), kind = kindFor(mode), hide = onlyOk.checked, cat = effCat();
   view = ITEMS.filter(it => passBase(it, kind, cat) && (!selCountry || it.c === selCountry) && hasTopic(it, selTopic)
-    && (!hide || !isDead(it)) && (!q || it._s.includes(q)));
-  view.sort((a, b) => health.ok.has(b.id) - health.ok.has(a.id)
+    && (mode === "fav" || !hide || !isDead(it)) && (!q || it._s.includes(q)));
+  if (mode !== "fav") view.sort((a, b) => health.ok.has(b.id) - health.ok.has(a.id)
     || (selTopic === "know" ? (a.kr ?? 99) - (b.kr ?? 99) : 0));  // «Познавательное»: бренды серии сверху
   shown = PAGE;
   renderList();
@@ -515,12 +530,15 @@ function rowHtml(it) {
   return `<li data-id="${it.id}" class="${current && current.id === it.id ? "on" : ""}">
     <span class="ico">${ico}</span>
     <span class="t"><b>${esc(it.n)}</b><small>${esc(subline(it))}</small></span>
+    <button type="button" class="fv${isFav(it) ? " on" : ""}" title="${isFav(it) ? "Убрать из избранного" : "В избранное"}" aria-label="Избранное"><svg class="icon"><use href="#i-star${isFav(it) ? "" : "-o"}"/></svg></button>
     <span class="dot ${dotClass(it)}"></span></li>`;
 }
 
 function renderList() {
   if (!view.length) {
-    list.innerHTML = `<li class="empty">${ITEMS.length ? "Ничего не найдено. Попробуйте другую страну или тему, либо снимите галочку «Скрывать неработающие»." : "Каталог загружается…"}</li>`;
+    list.innerHTML = mode === "fav" && !favs.size
+      ? `<li class="empty">В избранном пока пусто. Нажмите звёздочку ☆ рядом с каналом или кнопку «В избранное» под плеером (клавиша S).</li>`
+      : `<li class="empty">${ITEMS.length ? "Ничего не найдено. Попробуйте другую страну или тему, либо снимите галочку «Скрывать неработающие»." : "Каталог загружается…"}</li>`;
     return;
   }
   let html = view.slice(0, shown).map(rowHtml).join("");
@@ -544,9 +562,27 @@ list.addEventListener("click", e => {
   const li = e.target.closest("li[data-id]");
   if (!li) return;
   const it = ITEMS[+li.dataset.id];
+  if (e.target.closest(".fv")) { toggleFav(it); return; }
   if (mode === "wall") setMode(it.k === "tv" ? "tv" : "cam", false);
   play(it, 1, true);
 });
+
+function toggleFav(it) {
+  if (!it) return;
+  if (favs.has(it.u)) favs.delete(it.u); else favs.add(it.u);
+  store.set("okno.favs", [...favs]);
+  syncFavBtn();
+  if (mode === "fav") { applyFilter(); highlight(); return; }       // убрали — строка исчезает из списка
+  const li = list.querySelector(`li[data-id="${it.id}"] .fv`);
+  if (li) { li.classList.toggle("on", isFav(it)); li.title = isFav(it) ? "Убрать из избранного" : "В избранное"; li.querySelector("use").setAttribute("href", "#i-star" + (isFav(it) ? "" : "-o")); }
+}
+function syncFavBtn() {
+  const b = $("#bFav"), on = isFav(current);
+  b.classList.toggle("on", on);
+  b.querySelector("use").setAttribute("href", "#i-star" + (on ? "" : "-o"));
+  b.querySelector("span").textContent = on ? "В избранном" : "В избранное";
+}
+$("#bFav").onclick = () => toggleFav(current);
 
 /* ---------------- воспроизведение ---------------- */
 let hls = null, watchdog = null, playToken = 0, skipChain = 0, osdTimer = null;
@@ -652,7 +688,7 @@ function play(it, dir = 1, byUser = false) {
   const tok = ++playToken;
   store.set("okno.last", it.u);
   const tried = new Set();
-  highlight(); msg("Подключаюсь…");
+  highlight(); syncFavBtn(); msg("Подключаюсь…");
 
   const launch = () => {
     stopPlayback();
@@ -697,7 +733,7 @@ function play(it, dir = 1, byUser = false) {
 }
 
 function nextPlayable(dir) {
-  const pool = view.length ? view : ITEMS.filter(listable);
+  const pool = view.length || mode === "fav" ? view : ITEMS.filter(listable);
   if (!pool.length) return null;
   let i = current ? pool.indexOf(current) : -1;
   for (let n = 0; n < pool.length; n++) {
@@ -733,7 +769,7 @@ list.addEventListener("mouseover", e => {
 list.addEventListener("mouseleave", () => clearTimeout(hoverT));
 function randomPick() {
   if (mode === "wall") return buildWall();
-  const pool = (view.length ? view : ITEMS.filter(listable)).filter(it => !isDead(it) && it !== current);
+  const pool = (view.length || mode === "fav" ? view : ITEMS.filter(listable)).filter(it => !isDead(it) && it !== current);
   const good = pool.filter(it => health.ok.has(it.id));
   const from = good.length > 20 ? good : pool;
   if (from.length) play(from[Math.floor(Math.random() * from.length)], 1, true);
@@ -872,7 +908,7 @@ function setMode(m, autoplay = true) {
   if (m !== "wall") destroyWall(); else { $("#pbar").classList.remove("show"); $("#loading").hidden = true; }
   buildFacets();
   applyFilter();
-  if (m !== "wall" && autoplay && (!current || !inMode(current) || (kindFor(m) && current.k !== kindFor(m)))) randomPick();
+  if (m !== "wall" && autoplay && (!current || !inMode(current) || (m === "fav" && !isFav(current)) || (kindFor(m) && current.k !== kindFor(m)))) randomPick();
 }
 document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => setMode(b.dataset.mode));
 
@@ -987,6 +1023,7 @@ document.addEventListener("keydown", e => {
   else if (e.key === " " && e.target.tagName !== "BUTTON") { e.preventDefault(); togglePause(); }
   else if (k === "r" || k === "к") randomPick();
   else if (k === "f" || k === "а") toggleFull();
+  else if (k === "s" || k === "ы") toggleFav(current);
   else if (k === "m" || k === "ь") toggleMute();
   else if (k === "w" || k === "ц") setMode(mode === "wall" ? "cam" : "wall");
   else if (e.key === "/") { e.preventDefault(); qInput.focus(); }
@@ -1059,7 +1096,7 @@ async function pollHealth() {
   if (mode === "wall") { $("#loading").hidden = true; return; }
   const lastUrl = store.get("okno.last", "");
   const last = lastUrl && ITEMS.find(it => it.u === lastUrl);
-  if (last && listable(last) && !isDead(last)) play(last); else randomPick();
+  if (last && listable(last) && (mode !== "fav" || isFav(last)) && !isDead(last)) play(last); else randomPick();
 })();
 </script>
 </body>

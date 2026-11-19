@@ -20,6 +20,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 os.chdir(ROOT)
 sys.path.insert(0, str(ROOT))
+from splash import Splash  # noqa: E402
 LOG = ROOT / "cache" / "app.log"
 ICON = ROOT / "app.ico"
 TITLE = "Окно в мир"
@@ -65,40 +66,6 @@ def bind_exclusive() -> socket.socket:
     return s
 
 
-class Splash:
-    def __init__(self):
-        import tkinter as tk
-        from tkinter import ttk
-        r = self.root = tk.Tk()
-        r.overrideredirect(True)
-        r.attributes("-topmost", True)
-        r.configure(bg="#ffb547")
-        box = tk.Frame(r, bg="#0f1522", padx=34, pady=22)
-        box.pack(padx=2, pady=2)
-        tk.Label(box, text=TITLE, fg="#ffffff", bg="#0f1522", font=("Segoe UI Semibold", 16)).pack(anchor="w")
-        tk.Label(box, text="Загрузка…", fg="#ffb547", bg="#0f1522", font=("Segoe UI", 12)).pack(anchor="w", pady=(4, 12))
-        st = ttk.Style(r)
-        st.theme_use("clam")
-        st.configure("O.Horizontal.TProgressbar", troughcolor="#1b2740", background="#ffb547",
-                     bordercolor="#1b2740", lightcolor="#ffb547", darkcolor="#ffb547")
-        self.bar = ttk.Progressbar(box, mode="indeterminate", length=280, style="O.Horizontal.TProgressbar")
-        self.bar.pack()
-        self.bar.start(12)
-        r.update_idletasks()
-        w, h = r.winfo_reqwidth(), r.winfo_reqheight()
-        r.geometry(f"+{(r.winfo_screenwidth() - w) // 2}+{(r.winfo_screenheight() - h) // 2}")
-        self.done = threading.Event()
-
-    def run(self) -> None:
-        def tick():
-            if self.done.is_set():
-                self.root.destroy()
-            else:
-                self.root.after(100, tick)
-        tick()
-        self.root.mainloop()
-
-
 class App:
     def __init__(self, sock: socket.socket):
         self.sock = sock
@@ -112,7 +79,7 @@ class App:
         self._opened = time.time()
         webbrowser.open(URL)
 
-    def boot(self, splash: Splash) -> None:
+    def boot(self, splash) -> None:
         """В фоне, пока крутится заставка."""
         try:
             import server
@@ -214,7 +181,7 @@ def main() -> None:
                 "— закройте её. Или задайте другой порт: переменная PORT.")
         return
     a = App(sock)
-    splash = Splash()
+    splash = Splash(TITLE)
     threading.Thread(target=a.boot, args=(splash,), daemon=True).start()
     splash.run()
     if a.error:
