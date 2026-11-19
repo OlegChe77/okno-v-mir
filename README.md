@@ -7,6 +7,15 @@
   <a href="https://t.me/PravDoruB"><b>✈ Контакты (Telegram)</b></a>
 </p>
 
+<p align="center">
+  <a href="https://github.com/OlegChe77/okno-v-mir/releases/latest"><img src="https://img.shields.io/github/v/release/OlegChe77/okno-v-mir?label=%D0%B2%D0%B5%D1%80%D1%81%D0%B8%D1%8F" alt="Версия"></a>
+  <a href="https://github.com/OlegChe77/okno-v-mir/releases"><img src="https://img.shields.io/github/downloads/OlegChe77/okno-v-mir/total?label=%D1%81%D0%BA%D0%B0%D1%87%D0%B8%D0%B2%D0%B0%D0%BD%D0%B8%D0%B9" alt="Скачиваний"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/OlegChe77/okno-v-mir?label=%D0%BB%D0%B8%D1%86%D0%B5%D0%BD%D0%B7%D0%B8%D1%8F" alt="Лицензия MIT"></a>
+  <img src="https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6?logo=windows&logoColor=white" alt="Windows 10/11">
+  <img src="https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white" alt="Python 3.12">
+  <a href="https://github.com/OlegChe77/okno-v-mir/stargazers"><img src="https://img.shields.io/github/stars/OlegChe77/okno-v-mir?style=flat&label=%D0%B7%D0%B2%D1%91%D0%B7%D0%B4%D1%8B" alt="Звёзды"></a>
+</p>
+
 <p align="center"><img src="logo.png" width="140" alt="Окно в мир"></p>
 
 # Окно в мир
