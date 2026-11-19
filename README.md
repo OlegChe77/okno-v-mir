@@ -1,4 +1,8 @@
 <p align="center">
+  <a href="https://github.com/OlegChe77/okno-v-mir/releases/latest/download/okno-v-mir-v1.0.zip"><b>⬇ Скачать ZIP</b></a>
+</p>
+
+<p align="center">
   <a href="https://dalink.to/olegche"><b>❤ Помощь проекту</b></a> ·
   <a href="https://t.me/PravDoruB"><b>✈ Контакты (Telegram)</b></a>
 </p>
@@ -68,3 +72,7 @@
 ## Контакты
 
 Telegram-канал автора: **<https://t.me/PravDoruB>**
+
+## Лицензия
+
+MIT, см. файл [LICENSE](LICENSE). © 2026 OlegChe77.
