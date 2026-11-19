@@ -30,6 +30,7 @@ from email.utils import parsedate_to_datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import sources
+import updater
 import viewcams
 
 HOST = "127.0.0.1"
@@ -579,6 +580,7 @@ HEALTH = Health()
 
 
 def startup():
+    updater.start_background()  # сверка версии с GitHub — в фоне
     CATALOG.build()
     if CATALOG.items:
         HEALTH.run(CATALOG.items)
@@ -900,6 +902,13 @@ class Handler(BaseHTTPRequestHandler):
                     out["code"] = res[2]  # код восстановления: показывается один раз
                 body = json.dumps(out, ensure_ascii=False).encode("utf-8")
                 return self.send_bytes(200, body, "application/json; charset=utf-8", {"Set-Cookie": cookie % res[1]})
+            if path == "/api/update/apply":
+                # скачать релиз, заменить файлы, перезапуститься (ответ уходит до перезапуска)
+                ver, err = updater.apply()
+                if err:
+                    return self.send_json({"error": err}, 500)
+                threading.Thread(target=restart_program, daemon=True).start()
+                return self.send_json({"ok": True, "version": ver})
             if path == "/api/logout":
                 ACCOUNTS.logout(self.token())
                 return self.send_bytes(200, b'{"user":null}', "application/json; charset=utf-8",
@@ -941,6 +950,8 @@ class Handler(BaseHTTPRequestHandler):
                 extra = {"Set-Cookie": "okno_s=%s; Path=/; HttpOnly; SameSite=Strict; Max-Age=31536000" % self.token()} if user else None
                 return self.send_bytes(200, json.dumps({"user": user}, ensure_ascii=False).encode("utf-8"),
                                        "application/json; charset=utf-8", extra)
+            if path == "/api/update":
+                return self.send_json(updater.status())
             if path == "/api/health":
                 return self.send_json(HEALTH.summary(CATALOG.items, bool(self.session_user())))
             if path in ("/p", "/warm"):
@@ -1020,13 +1031,28 @@ class Handler(BaseHTTPRequestHandler):
             resp.release()
 
 
+RESTART = {"fn": None}  # launcher.py ставит сюда свой перезапуск (с закрытием значка в трее)
+
+
+def restart_program():
+    """Перезапуск после обновления: помощник дожидается нашего выхода и запускает программу заново."""
+    time.sleep(0.7)
+    fn = RESTART["fn"]
+    if fn:
+        return fn()
+    if sys.platform == "win32":  # запуск из консоли: python server.py
+        updater.spawn_relaunch(sys.executable, os.path.join(ROOT, "server.py"), hidden=False)
+        os._exit(0)
+    os.execv(sys.executable, [sys.executable] + sys.argv)
+
+
 def main():
     threading.Thread(target=startup, daemon=True).start()
     srv = ThreadingHTTPServer((HOST, PORT), Handler)
     srv.daemon_threads = True
     url = f"http://{HOST}:{PORT}/"
     log("Окно в мир работает:", url, "(закрыть — Ctrl+C)")
-    if "--no-browser" not in sys.argv:
+    if "--no-browser" not in sys.argv and not updater.restart_flag_fresh():
         threading.Timer(1.0, lambda: webbrowser.open(url)).start()
     try:
         srv.serve_forever()

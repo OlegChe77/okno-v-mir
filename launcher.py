@@ -100,13 +100,29 @@ class App:
                 self.error = "Сервер программы не ответил."
                 return
             logging.info("сервер работает: %s", URL)
-            self.open_browser()
+            import updater
+            server.RESTART["fn"] = self.restart_after_update
+            if updater.restart_flag_fresh():
+                logging.info("перезапуск после обновления: страница обновится сама")
+            else:
+                self.open_browser()
             time.sleep(0.8)
         except Exception:  # noqa: BLE001
             logging.exception("запуск")
             self.error = "Программа не запустилась:\n\n" + traceback.format_exc(limit=3)[-600:]
         finally:
             splash.done.set()
+
+    def restart_after_update(self) -> None:
+        """Файлы уже заменены: помощник дождётся нашего выхода и снова запустит start.bat."""
+        import tray
+        import updater
+        logging.info("перезапуск после обновления")
+        if not updater.spawn_relaunch(str(ROOT / "start.bat")):
+            return
+        tray.request_exit()               # значок уходит из трея, цикл main() завершается → os._exit(0)
+        time.sleep(5)
+        os._exit(0)                       # на случай, если меню трея не отозвалось
 
     def quit(self, force: bool = False) -> bool:
         logging.info("выход")

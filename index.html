@@ -25,6 +25,17 @@
   button, input, select { font: inherit; color: inherit; }
   svg.icon { width: 18px; height: 18px; fill: currentColor; flex: none; }
 
+  /* ---------- плашка обновления ---------- */
+  .upd { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 8px 16px; font-size: 14px;
+    background: linear-gradient(90deg, rgba(255,181,71,.16), rgba(255,122,89,.10)); border-bottom: 1px solid rgba(255,181,71,.35); }
+  .upd[hidden] { display: none; }
+  .upd b { color: var(--accent); }
+  .upd .go { background: var(--accent); color: #1a1205; }
+  .upd .go:disabled { opacity: .6; cursor: default; }
+  .upd .later { background: none; color: var(--muted); border: 1px solid var(--line); }
+  .upd .msg { color: var(--muted); }
+  .upd .err { color: var(--bad); }
+
   /* ---------- шапка ---------- */
   .top {
     display: flex; align-items: center; gap: 14px; padding: 10px 16px;
@@ -282,6 +293,12 @@
     <button type="button" id="logoutBtn" title="Выйти из аккаунта (18+ закроется, вход потребует пароль)">Выйти</button>
   </div>
 </header>
+
+<div class="upd" id="upd" hidden role="status">
+  <span id="updText"></span>
+  <button type="button" class="btn go" id="updGo" title="Скачать новую версию, заменить файлы и перезапустить программу">Обновить</button>
+  <button type="button" class="btn later" id="updLater" title="Спросить снова при следующей новой версии">Позже</button>
+</div>
 
 <div class="layout">
   <aside class="side">
@@ -1051,7 +1068,45 @@ async function pollHealth() {
   } catch { setTimeout(pollHealth, 10000); }
 }
 
+/* ---------------- самообновление ---------------- */
+async function checkUpdate(tries = 0) {
+  try {
+    const u = await (await fetch("/api/update")).json();
+    if (u.available) return showUpdate(u);
+    if (u.checking && tries < 10) setTimeout(() => checkUpdate(tries + 1), 3000);  // GitHub ещё не ответил
+  } catch {}
+}
+function showUpdate(u) {
+  if (store.get("okno.updSkip", "") === u.latest) return;
+  const bar = $("#upd"), txt = $("#updText"), go = $("#updGo"), later = $("#updLater");
+  txt.innerHTML = `Доступна версия <b>${esc(u.latest)}</b> (у вас ${esc(u.current)}), обновить?`;
+  bar.hidden = false;
+  later.onclick = () => { store.set("okno.updSkip", u.latest); bar.hidden = true; };
+  go.onclick = async () => {
+    go.disabled = later.disabled = true;
+    txt.innerHTML = `<span class="msg">Скачиваю версию ${esc(u.latest)} и заменяю файлы…</span>`;
+    try {
+      const r = await fetch("/api/update/apply", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || r.status);
+    } catch (e) {
+      txt.innerHTML = `<span class="err">Не удалось обновить: ${esc(e.message)}</span>`;
+      go.disabled = later.disabled = false;
+      return;
+    }
+    txt.innerHTML = `<span class="msg">Обновлено, перезапускаю программу…</span>`;
+    go.hidden = later.hidden = true;
+    let down = false;  // ждём, пока старый сервер выключится и новый ответит
+    for (let i = 0; i < 90; i++) {
+      await new Promise(res => setTimeout(res, 1000));
+      try { await fetch("/api/me", { cache: "no-store" }); if (down) return location.reload(); } catch { down = true; }
+    }
+    txt.innerHTML = `<span class="err">Программа не ответила после перезапуска. Запустите её ярлыком «Окно в мир».</span>`;
+  };
+}
+
 /* ---------------- старт ---------------- */
+(function () { setTimeout(checkUpdate, 1500); })();
 (async function init() {
   try {
     const me = await (await fetch("/api/me")).json();

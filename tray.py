@@ -70,7 +70,17 @@ _sig(u32.LoadIconW, W.HICON, W.HINSTANCE, W.LPVOID)
 _sig(k32.GetModuleHandleW, W.HMODULE, W.LPCWSTR)
 _sig(sh32.Shell_NotifyIconW, W.BOOL, W.DWORD, C.POINTER(NOTIFYICONDATAW))
 
-_keep = []   # ссылки на колбэк и структуры, чтобы их не собрал сборщик мусора
+_keep = []
+_exit = {"hwnd": None, "cmd": 0}   # окно и номер пункта «Выход» — для request_exit()
+
+
+def request_exit() -> None:
+    """Выйти так же, как по пункту «Выход» (значок убирается из трея). Можно звать из любого потока."""
+    if _exit["hwnd"]:
+        u32.PostMessageW(_exit["hwnd"], WM_COMMAND, _exit["cmd"], 0)
+
+
+# ссылки на колбэк и структуры, чтобы их не собрал сборщик мусора
 
 
 def run(icon: Path, tip: str, items, on_click=None, on_quit=None) -> None:
@@ -164,6 +174,8 @@ def run(icon: Path, tip: str, items, on_click=None, on_quit=None) -> None:
     u32.RegisterClassW(C.byref(wc))
     hwnd = u32.CreateWindowExW(0, "OknoTrayWindow", "Окно в мир", 0, 0, 0, 0, 0, None, None, hinst, None)
     add_icon(hwnd)
+    _exit["hwnd"] = hwnd
+    _exit["cmd"] = next((i + 1 for i, it in enumerate(items) if it and it[1] is None), 0)
     msg = W.MSG()
     while u32.GetMessageW(C.byref(msg), None, 0, 0) > 0:
         u32.TranslateMessage(C.byref(msg))
