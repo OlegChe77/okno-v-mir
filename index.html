@@ -1,0 +1,1066 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Окно в мир</title>
+<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="apple-touch-icon" href="/logo.png">
+<style>
+  :root {
+    --bg: #0a0e16; --panel: #111827; --panel-2: #162033; --line: #222c3f;
+    --text: #e8edf5; --muted: #8b97aa; --accent: #ffb547; --accent-2: #ff7a59;
+    --ok: #3ecf8e; --bad: #ff5d5d; --live: #ff3b4e;
+    --radius: 12px;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font: 14px/1.4 "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  button, input, select { font: inherit; color: inherit; }
+  svg.icon { width: 18px; height: 18px; fill: currentColor; flex: none; }
+
+  /* ---------- шапка ---------- */
+  .top {
+    display: flex; align-items: center; gap: 14px; padding: 10px 16px;
+    border-bottom: 1px solid var(--line); background: linear-gradient(180deg, #0f1522, var(--bg));
+    flex-wrap: wrap;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; letter-spacing: .2px; white-space: nowrap; }
+  .brand .logo { width: 36px; height: 36px; flex: none; display: block; }
+  .live { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; color: var(--live);
+    border: 1px solid rgba(255, 59, 78, .4); padding: 2px 7px; border-radius: 99px; letter-spacing: .6px; }
+  .live::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--live); animation: pulse 1.6s infinite; }
+  @keyframes pulse { 50% { opacity: .25; } }
+
+  .tabs { display: flex; gap: 4px; background: var(--panel); padding: 4px; border-radius: 10px; border: 1px solid var(--line); }
+  .tabs button { border: 0; background: none; padding: 6px 12px; border-radius: 7px; cursor: pointer; color: var(--muted);
+    display: inline-flex; align-items: center; gap: 6px; }
+  .tabs button[hidden] { display: none; }
+  .tabs button:hover { color: var(--text); }
+  .tabs button[aria-selected="true"] { background: var(--panel-2); color: var(--text); box-shadow: inset 0 0 0 1px #2d3a52; }
+  .spacer { flex: 1; }
+
+  a.btn, button.btn { display: inline-flex; align-items: center; gap: 7px; text-decoration: none; font-weight: 600;
+    padding: 8px 14px; border-radius: 10px; color: #fff; white-space: nowrap; }
+  a.btn.donate {
+    position: relative; overflow: hidden;
+    background: linear-gradient(135deg, #ff8a3d 0%, #ff5a6e 55%, #e8448f 100%);
+    box-shadow: 0 4px 16px rgba(255, 90, 110, .22), inset 0 1px 0 rgba(255, 255, 255, .2);
+    transition: transform .15s, box-shadow .15s, filter .15s;
+  }
+  a.btn.donate::after { content: ""; position: absolute; inset: 0; transform: translateX(-120%);
+    background: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, .35) 50%, transparent 70%); transition: transform .6s; }
+  a.btn.donate:hover { transform: translateY(-1px); filter: brightness(1.05); box-shadow: 0 6px 20px rgba(255, 90, 110, .45); }
+  a.btn.donate:hover::after { transform: translateX(120%); }
+  a.btn.donate .hearts { display: inline-flex; align-items: center; gap: 2px; }
+  a.btn.donate .hearts svg { width: 13px; height: 13px; fill: currentColor; opacity: .85; animation: beat 2.4s ease-in-out infinite; }
+  a.btn.donate .hearts svg:nth-child(2) { width: 16px; height: 16px; animation-delay: .3s; }
+  a.btn.donate .hearts svg:nth-child(3) { animation-delay: .6s; }
+  @keyframes beat { 0%, 60%, 100% { transform: scale(1); } 30% { transform: scale(1.18); } }
+  a.btn.contact { background: linear-gradient(135deg, #37aee2 0%, #1e96c8 100%); box-shadow: 0 2px 8px rgba(34, 158, 217, .35);
+    transition: filter .15s, transform .15s; }
+  a.btn.contact:hover { filter: brightness(1.08); transform: translateY(-1px); }
+  button.btn { border: 0; cursor: pointer; font: inherit; font-weight: 600; }
+  .tabs button.tab18 { background: linear-gradient(135deg, #ffd23f, #ffb547); color: #1a1205; font-weight: 800; animation: breathe 2.6s ease-in-out infinite; }
+  .tabs button.tab18[aria-selected=true] { outline: 2px solid #fff3; }
+  @keyframes breathe { 0%, 100% { box-shadow: 0 0 4px 0 rgba(255, 200, 60, .35); transform: scale(1); } 50% { box-shadow: 0 0 14px 4px rgba(255, 200, 60, .85); transform: scale(1.06); } }
+  @media (prefers-reduced-motion: reduce) { .tabs button.tab18 { animation: none; } }
+  button.btn[hidden] { display: none; }
+  button.btn.reg { background: linear-gradient(135deg, #3ddc84, #1fae63); color: #04210f; }
+  button.btn.reg:hover { filter: brightness(1.08); transform: translateY(-1px); }
+  a.btn.help { background: var(--panel-2); border: 1px solid var(--line); color: var(--text); box-shadow: none; }
+  a.btn.help:hover { border-color: var(--accent); transform: translateY(-1px); }
+  @media (prefers-reduced-motion: reduce) { a.btn.donate .hearts svg, .live::before { animation: none; } a.btn.donate::after { display: none; } }
+
+  /* ---------- раскладка ---------- */
+  .layout { flex: 1; display: grid; grid-template-columns: 360px 1fr; min-height: 0; }
+  .side { border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; background: var(--panel); }
+  .filters { padding: 12px; display: grid; gap: 8px; border-bottom: 1px solid var(--line); }
+  .filters input[type=search], .filters select {
+    width: 100%; padding: 9px 11px; border-radius: 9px; border: 1px solid var(--line); background: var(--bg); outline: none; }
+  .filters input[type=search]:focus, .filters select:focus { border-color: var(--accent); }
+  .chk { display: flex; align-items: center; gap: 8px; color: var(--muted); cursor: pointer; user-select: none; }
+  .chk input { accent-color: var(--accent); }
+  .age { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; background: rgba(5, 8, 14, .78); }
+  .age[hidden] { display: none; }
+  .age .box { width: min(92vw, 400px); padding: 22px; border-radius: 14px; background: var(--panel); border: 1px solid var(--line);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, .5); text-align: center; }
+  .age h2 { margin: 0 0 8px; font-size: 20px; }
+  .age p { margin: 0 0 18px; color: var(--muted); }
+  .age .row { display: flex; gap: 10px; justify-content: center; }
+  .age button { padding: 10px 16px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); cursor: pointer; font: inherit; }
+  .age input[type=text], .age input[type=password] { width: 100%; box-sizing: border-box; margin: 0 0 10px; padding: 10px 12px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); font: inherit; }
+  .age .chk { display: flex; gap: 8px; align-items: flex-start; margin: 0 0 12px; font-size: 13px; color: var(--muted); text-align: left; }
+  .age .chk[hidden] { display: none; }
+  .age .warn { margin: -2px 0 10px; padding: 7px 10px; border-radius: 8px; background: rgba(255, 181, 71, .14); border: 1px solid rgba(255, 181, 71, .5); color: var(--accent); font-size: 13px; text-align: left; }
+  .age .warn[hidden] { display: none; }
+  .age .err { min-height: 18px; margin: 0 0 8px; color: #ff7b7b; font-size: 13px; }
+  .age p.sw { margin: 14px 0 0; font-size: 13px; }
+  .age p.sw a { color: var(--accent); }
+  .age p.sw[hidden] { display: none; }
+  .age input[hidden] { display: none; }
+  .age .box[hidden] { display: none; }
+  .age .code { margin: 0 0 16px; padding: 14px; border-radius: 9px; background: var(--panel-2); border: 1px dashed var(--accent);
+    font: 700 24px/1 ui-monospace, Consolas, monospace; letter-spacing: 2px; user-select: all; }
+  .who { display: flex; align-items: center; gap: 8px; margin-left: 6px; padding: 5px 6px 5px 12px; border-radius: 999px; white-space: nowrap;
+    background: var(--panel-2); border: 1px solid var(--line); }
+  .who[hidden] { display: none; }
+  .who .dot { width: 9px; height: 9px; border-radius: 50%; background: #3ddc84; box-shadow: 0 0 8px 2px rgba(61, 220, 132, .7); animation: glow 2.4s ease-in-out infinite; }
+  .who .wname { font-weight: 600; max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
+  .who button { padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--muted); cursor: pointer; font: inherit; font-size: 12px; }
+  .who button:hover { color: var(--text); border-color: var(--accent); }
+  @keyframes glow { 0%, 100% { box-shadow: 0 0 5px 1px rgba(61, 220, 132, .5); } 50% { box-shadow: 0 0 11px 3px rgba(61, 220, 132, .9); } }
+  @media (prefers-reduced-motion: reduce) { .who .dot { animation: none; } }
+  .age button.yes { background: var(--accent); border-color: var(--accent); color: #1a1205; font-weight: 600; }
+  .health { padding: 7px 12px; font-size: 12px; color: var(--muted); border-bottom: 1px solid var(--line); min-height: 30px; }
+  .health b { color: var(--text); font-weight: 600; }
+  .bar { height: 3px; background: var(--line); border-radius: 3px; margin-top: 5px; overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width .5s; }
+
+  .list { list-style: none; margin: 0; padding: 6px; overflow-y: auto; flex: 1; }
+  .list li { display: grid; grid-template-columns: 38px 1fr 10px; gap: 10px; align-items: center;
+    padding: 7px 8px; border-radius: 9px; cursor: pointer; }
+  .list li:hover { background: var(--panel-2); }
+  .list li.on { background: #1d2a42; box-shadow: inset 3px 0 0 var(--accent); }
+  .list .ico { width: 38px; height: 28px; border-radius: 6px; background: #0d1320; display: grid; place-items: center; overflow: hidden; color: var(--muted); }
+  .list .ico img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .list .t { min-width: 0; }
+  .list .t b { display: block; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .list .t small { display: block; color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #39445a; }
+  .dot.ok { background: var(--ok); } .dot.bad { background: var(--bad); }
+  .more { margin: 8px; padding: 9px; text-align: center; color: var(--muted); font-size: 12px; }
+  .more button { margin-top: 6px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+  .empty { padding: 24px 14px; color: var(--muted); text-align: center; }
+
+  /* ---------- экран ---------- */
+  .stage { display: flex; flex-direction: column; min-height: 0; padding: 14px; gap: 10px; }
+  .screen { position: relative; flex: 1; min-height: 0; background: #000; border-radius: var(--radius); overflow: hidden;
+    border: 1px solid var(--line); }
+  .screen video, .screen #mjpeg, .screen #yt { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; }
+  .screen #yt { border: 0; }
+  .screen [hidden] { display: none !important; }
+  .osd { position: absolute; left: 16px; top: 16px; max-width: 70%; padding: 10px 14px; border-radius: 10px;
+    background: rgba(5, 8, 14, .72); backdrop-filter: blur(6px); transition: opacity .6s; pointer-events: none; }
+  .osd.fade { opacity: 0; }
+  .osd-kind { font-size: 11px; font-weight: 700; letter-spacing: .8px; color: var(--accent); text-transform: uppercase; }
+  .osd-name { font-size: 20px; font-weight: 700; margin-top: 2px; }
+  .osd-sub { color: var(--muted); font-size: 13px; }
+  .msg { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); padding: 8px 14px; border-radius: 99px;
+    background: rgba(5, 8, 14, .8); color: var(--text); font-size: 13px; white-space: nowrap; }
+  .msg:empty { display: none; }
+  .loading { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none;
+    background: radial-gradient(circle at 50% 40%, #16233b, #0b111c 70%); color: var(--text); font-size: 24px; font-weight: 600; letter-spacing: .5px; }
+  .loading[hidden] { display: none; }
+  .loading span { animation: ldpulse 1.6s ease-in-out infinite; }
+  @keyframes ldpulse { 0%, 100% { opacity: .45; } 50% { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .loading span { animation: none; } }
+  .unmute { position: absolute; right: 16px; top: 16px; border: 0; border-radius: 99px; padding: 8px 14px; cursor: pointer;
+    background: var(--accent); color: #1b1203; font-weight: 700; display: inline-flex; gap: 6px; align-items: center; }
+
+  .osd-src { color: var(--muted); font-size: 12px; margin-top: 3px; }
+  /* панель управления на экране плеера */
+  .pbar { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; align-items: center; gap: 8px;
+    padding: 6px 10px; border-radius: 99px; background: rgba(5, 8, 14, .78); backdrop-filter: blur(6px);
+    transition: opacity .3s; z-index: 3; }
+  .pbar:not(.show) { opacity: 0; pointer-events: none; }
+  .pbar button { width: 34px; height: 34px; border: 0; border-radius: 50%; background: transparent; cursor: pointer;
+    display: grid; place-items: center; }
+  .pbar button:hover:not(:disabled) { background: rgba(255, 255, 255, .14); }
+  .pbar button:disabled { opacity: .35; cursor: default; }
+  .pbar input[type=range] { width: 110px; accent-color: var(--accent); }
+  .pbar input[type=range]:disabled { opacity: .35; }
+  .pstate { font-size: 12px; color: var(--muted); min-width: 92px; }
+  .msg { bottom: 70px; }
+  .badge { position: absolute; right: 16px; top: 16px; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center;
+    background: rgba(5, 8, 14, .72); color: var(--accent); pointer-events: none; transition: opacity .6s; }
+  .badge.fade { opacity: 0; }
+  .wall { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); gap: 3px; background: #000; }
+  .wall:empty { display: none; }
+  .tile { position: relative; background: #05070b; overflow: hidden; cursor: pointer; }
+  .tile video, .tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .tile span { position: absolute; left: 6px; bottom: 6px; right: 6px; font-size: 12px; padding: 3px 7px; border-radius: 6px;
+    background: rgba(0, 0, 0, .6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tile:hover { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+  .controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .controls button { display: inline-flex; align-items: center; gap: 7px; padding: 8px 13px; border-radius: 10px; cursor: pointer;
+    background: var(--panel); border: 1px solid var(--line); }
+  .controls button:hover { background: var(--panel-2); border-color: #33415c; }
+  .controls button.primary { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #1b1203; border: 0; font-weight: 700; }
+  .keys { color: var(--muted); font-size: 12px; margin-left: auto; }
+  kbd { font: 11px Consolas, monospace; padding: 1px 5px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; }
+
+  /* Шапка: плашка с именем (#who) всегда в первой строке справа. Порядок: бренд, пустое место, ссылки, плашка, вкладки (во всю ширину). */
+  .links { display: contents; }
+  @media (max-width: 1100px) {
+    .brand { order: 1; } .spacer { order: 2; } .links, .links .btn { order: 3; } .who { order: 4; margin-left: 0; } .tabs { order: 5; width: 100%; justify-content: space-between; }
+  }
+  /* Узко: первая строка — бренд и плашка (бренд сжимается, плашка у правого края), ссылки — второй строкой, вкладки — третьей. */
+  @media (max-width: 860px) {
+    .spacer { display: none; }
+    .brand { flex: 1 1 0; min-width: 0; overflow: hidden; }
+    .live { display: none; }
+    .who { order: 2; margin-left: auto; flex: none; }
+    .who .wname { max-width: 100px; }
+    .links { display: flex; gap: 10px; order: 3; width: 100%; }
+    .links .btn { flex: 1; justify-content: center; }
+    .tabs { order: 4; }
+  }
+  @media (max-width: 860px) {
+    .pstate { display: none; } .pbar input[type=range] { width: 80px; }
+    body { overflow: auto; }
+    .top { padding: 10px 16px; gap: 10px; }
+    .tabs button { padding: 6px 8px; }
+    .layout { display: flex; flex-direction: column-reverse; flex: none; }
+    .stage, .side { flex: none; min-height: auto; }
+    .side { border-right: 0; border-top: 1px solid var(--line); }
+    .list { max-height: 60vh; }
+    .stage { padding: 10px 16px; }
+    .screen { flex: none; aspect-ratio: 16 / 9; }
+    .keys { display: none; }
+    .osd-name { font-size: 16px; }
+  }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></symbol>
+  <symbol id="i-telegram" viewBox="0 0 24 24"><path d="M21.94 4.3 18.7 19.6c-.24 1.08-.88 1.35-1.79.84l-4.94-3.64-2.38 2.3c-.26.26-.49.48-1 .48l.36-5.04 9.17-8.28c.4-.36-.09-.55-.62-.2L6.17 13.2l-4.88-1.53c-1.06-.33-1.08-1.06.22-1.57L20.6 2.75c.88-.32 1.66.2 1.34 1.55z"/></symbol>
+  <symbol id="i-all" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm6.9 6h-2.95a15.6 15.6 0 0 0-1.38-3.56A8.03 8.03 0 0 1 18.9 8zM12 4.04c.83 1.2 1.48 2.53 1.91 3.96h-3.82c.43-1.43 1.08-2.76 1.91-3.96zM4.26 14a8.2 8.2 0 0 1 0-4h3.38a16.5 16.5 0 0 0 0 4H4.26zm.82 2h2.95c.32 1.25.78 2.45 1.38 3.56A7.99 7.99 0 0 1 5.08 16zm2.95-8H5.08a7.99 7.99 0 0 1 4.33-3.56A15.6 15.6 0 0 0 8.03 8zM12 19.96c-.83-1.2-1.48-2.53-1.91-3.96h3.82c-.43 1.43-1.08 2.76-1.91 3.96zM14.34 14H9.66a14.7 14.7 0 0 1 0-4h4.68a14.7 14.7 0 0 1 0 4zm.25 5.56c.6-1.11 1.06-2.31 1.38-3.56h2.95a8.03 8.03 0 0 1-4.33 3.56zM16.36 14a16.5 16.5 0 0 0 0-4h3.38a8.2 8.2 0 0 1 0 4h-3.38z"/></symbol>
+  <symbol id="i-tv" viewBox="0 0 24 24"><path d="M21 6h-7.59l3.3-3.29-.71-.71L12 5.59 8 2l-.71.71L10.59 6H3a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2zm0 13H3V8h18v11z"/></symbol>
+  <symbol id="i-cam" viewBox="0 0 24 24"><path d="M17 10.5V7a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3.5l4 4v-11l-4 4z"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><path d="M3 3h5v5H3zm6.5 0h5v5h-5zM16 3h5v5h-5zM3 9.5h5v5H3zm6.5 0h5v5h-5zm6.5 0h5v5h-5zM3 16h5v5H3zm6.5 0h5v5h-5zm6.5 0h5v5h-5z"/></symbol>
+  <symbol id="i-prev" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></symbol>
+  <symbol id="i-next" viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></symbol>
+  <symbol id="i-shuffle" viewBox="0 0 24 24"><path d="M10.59 9.17 5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></symbol>
+  <symbol id="i-full" viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></symbol>
+  <symbol id="i-sound" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></symbol>
+  <symbol id="i-mute" viewBox="0 0 24 24"><path d="M16.5 12A4.5 4.5 0 0 0 14 7.97v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51A8.8 8.8 0 0 0 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3 3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06a8.99 8.99 0 0 0 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4 9.91 6.09 12 8.18V4z"/></symbol>
+  <symbol id="i-vlow" viewBox="0 0 24 24"><path d="M18.5 12A4.5 4.5 0 0 0 16 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02zM5 9v6h4l5 5V4L9 9H5z"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></symbol>
+</svg>
+
+<header class="top">
+  <div class="brand"><img class="logo" src="/logo.png" alt="" width="36" height="36">Окно в мир <span class="live">ПРЯМОЙ ЭФИР</span></div>
+  <nav class="tabs" role="tablist" aria-label="Что показывать">
+    <button role="tab" data-mode="all"><svg class="icon"><use href="#i-all"/></svg>Всё</button>
+    <button role="tab" data-mode="tv"><svg class="icon"><use href="#i-tv"/></svg>ТВ</button>
+    <button role="tab" data-mode="cam"><svg class="icon"><use href="#i-cam"/></svg>Камеры</button>
+    <button role="tab" data-mode="wall"><svg class="icon"><use href="#i-grid"/></svg>Стена</button>
+  </nav>
+  <div class="spacer"></div>
+  <div class="links">
+  <a class="btn donate" href="https://dalink.to/olegche" target="_blank" rel="noopener" title="Поддержать разработку (DonationAlerts)">
+    <span class="hearts" aria-hidden="true"><svg><use href="#i-heart"/></svg><svg><use href="#i-heart"/></svg><svg><use href="#i-heart"/></svg></span>Помощь проекту
+  </a>
+  <a class="btn contact" href="https://t.me/PravDoruB" target="_blank" rel="noopener" title="Связаться с автором — Telegram-канал">
+    <svg class="icon"><use href="#i-telegram"/></svg>Контакты
+  </a>
+  <a class="btn help" href="/help" target="_blank" rel="noopener" title="Помощь: как пользоваться программой">Справка</a>
+  <button type="button" class="btn reg" id="regBtn" title="Создать аккаунт или войти: после этого появится дополнительный раздел">Регистрация / Вход</button>
+  </div>
+  <div class="who" id="who" hidden title="Вы вошли. Вход запоминается на этом компьютере">
+    <span class="dot" aria-hidden="true"></span><span class="wname" id="whoName"></span>
+    <button type="button" id="logoutBtn" title="Выйти из аккаунта (18+ закроется, вход потребует пароль)">Выйти</button>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="side">
+    <div class="filters">
+      <input id="q" type="search" placeholder="Поиск: канал, город, пляж, дорога, тема…" autocomplete="off">
+      <select id="country" aria-label="Страна"></select>
+      <select id="topic" aria-label="Тема"></select>
+      <select id="cat" aria-label="Тип камер">
+        <option value="">Все камеры: виды и дороги</option>
+        <option value="view">Виды: природа, города, порты, пляжи</option>
+        <option value="road">Дороги</option>
+      </select>
+      <label class="chk"><input type="checkbox" id="onlyOk" checked> Скрывать неработающие</label>
+      <label class="chk" title="В России YouTube замедлен, поэтому по умолчанию показываем прямые снимки и потоки"><input type="checkbox" id="withYt"> Добавить YouTube-трансляции (в РФ медленно)</label>
+    </div>
+    <div class="health" id="health">Загружаю каталог…</div>
+    <ul class="list" id="list"></ul>
+  </aside>
+
+  <main class="stage">
+    <div class="screen" id="screen">
+      <video id="video" playsinline></video>
+      <img id="mjpeg" alt="" hidden>
+      <iframe id="yt" title="YouTube" hidden allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>
+      <div class="wall" id="wall"></div>
+      <div class="loading" id="loading"><span>Загрузка…</span></div>
+      <div class="osd fade" id="osd"><div class="osd-kind" id="osdKind"></div><div class="osd-name" id="osdName"></div><div class="osd-sub" id="osdSub"></div><div class="osd-src" id="osdSrc"></div></div>
+      <div class="msg" id="msg"></div>
+      <div class="badge fade" id="badge" aria-hidden="true"><svg class="icon"><use href="#i-mute"/></svg></div>
+      <div class="pbar" id="pbar">
+        <button id="pPlay" title="Пауза / пуск (пробел)" aria-label="Пауза / пуск"><svg class="icon"><use href="#i-pause"/></svg></button>
+        <button id="pMute" title="Звук вкл/выкл (M)" aria-label="Звук"><svg class="icon"><use href="#i-sound"/></svg></button>
+        <input id="pVol" type="range" min="0" max="100" step="1" value="100" aria-label="Громкость" title="Громкость (← →)">
+        <span class="pstate" id="pState"></span>
+      </div>
+      <button class="unmute" id="unmute" hidden><svg class="icon"><use href="#i-sound"/></svg>Включить звук</button>
+    </div>
+    <div class="controls">
+      <button id="bPrev" title="Предыдущий (↑)"><svg class="icon"><use href="#i-prev"/></svg>Пред.</button>
+      <button id="bRandom" class="primary" title="Случайное окно (R)"><svg class="icon"><use href="#i-shuffle"/></svg>Случайное окно</button>
+      <button id="bNext" title="Следующий (↓)">След.<svg class="icon"><use href="#i-next"/></svg></button>
+      <button id="bFull" title="Во весь экран (F)"><svg class="icon"><use href="#i-full"/></svg>Экран</button>
+      <span class="keys"><kbd>↑</kbd><kbd>↓</kbd> листать · <kbd>R</kbd> случайно · <kbd>F</kbd> экран · <kbd>M</kbd> звук · <kbd>←</kbd><kbd>→</kbd> громкость · <kbd>пробел</kbd> пауза · <kbd>W</kbd> стена</span>
+    </div>
+  </main>
+</div>
+
+<script src="/hls.min.js"></script>
+<script src="/mpegts.min.js"></script>
+<div class="age" id="age" role="dialog" aria-modal="true" aria-labelledby="ageT" hidden>
+  <form class="box" id="regForm" autocomplete="on">
+    <h2 id="ageT">Регистрация</h2>
+    <p id="regHint"></p>
+    <input id="regName" type="text" placeholder="Имя" maxlength="30" autocomplete="username" required>
+    <input id="regCodeIn" type="text" placeholder="Код восстановления (XXXX-XXXX-XXXX)" maxlength="20" autocomplete="off" spellcheck="false" hidden>
+    <input id="regPass" type="password" placeholder="Пароль (от 4 символов)" maxlength="200" autocomplete="new-password" required>
+    <label class="chk" id="regAgeRow"><input type="checkbox" id="regAge"> Мне есть 18 лет, каналы содержат материалы для взрослых</label>
+    <div class="warn" id="regWarn" role="status" hidden></div>
+    <div class="err" id="regErr" role="alert"></div>
+    <div class="row"><button class="yes" id="regGo" type="submit">Зарегистрироваться</button><button type="button" id="ageNo">Отмена</button></div>
+    <p class="sw"><a href="#" id="regSwitch"></a></p>
+    <p class="sw"><a href="#" id="regForgot">Забыли пароль?</a></p>
+  </form>
+  <div class="box" id="codeBox" hidden>
+    <h2>Код восстановления</h2>
+    <p>Запишите или сохраните его. Если забудете пароль, по этому коду можно задать новый. Показывается один раз.</p>
+    <div class="code" id="codeVal"></div>
+    <div class="row"><button type="button" id="codeCopy">Скопировать</button><button type="button" class="yes" id="codeOk">Записал, продолжить</button></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const DAY = 864e5, PAGE = 400;
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const norm = s => String(s || "").toLowerCase().replace(/ё/g, "е");
+let regionNames = null;
+try { regionNames = new Intl.DisplayNames(["ru"], { type: "region" }); } catch {}
+function countryName(it) {
+  if (it.c === "INT") return "Международные";
+  if (!it.c) return "Без страны";
+  try { const n = regionNames && regionNames.of(it.c); if (n && n !== it.c) return n; } catch {}
+  return it.cn || it.c;
+}
+const ENV = { traffic: "дорога", landmark: "достопримечательность", lake: "озеро", highway: "трасса",
+  city: "город", beach: "пляж", port: "порт", ferry: "паром", volcano: "вулкан", wildlife: "животные",
+  aurora: "горы и небо", nature: "природа", dam: "река", stadium: "стадион", live: "прямой эфир",
+  landscape: "пейзаж", mountain: "горы", coast: "побережье", forest: "лес", water: "вода", construction: "стройка" };
+// Темы: у ТВ — категории iptv-org, у камер — подвид (город, пляж, порт, горы, дорога…)
+const TOPICS = {
+  general: "Общие", news: "Новости", sports: "Спорт", movies: "Кино", series: "Сериалы", music: "Музыка",
+  kids: "Детям", entertainment: "Развлечения", documentary: "Документальное", comedy: "Юмор",
+  education: "Образование", culture: "Культура", animation: "Мультфильмы", legislative: "Парламент",
+  lifestyle: "Образ жизни", classic: "Классика", outdoor: "На природе", shop: "Магазин", business: "Бизнес",
+  family: "Семья", travel: "Путешествия", cooking: "Кулинария", public: "Общественное", auto: "Авто",
+  science: "Наука", weather: "Погода", relax: "Релакс", interactive: "Интерактив", religious: "Религия",
+  road: "Камеры: дорога", city: "Камеры: город", beach: "Камеры: пляж", port: "Камеры: порт", ferry: "Камеры: паром",
+  volcano: "Камеры: вулкан", wildlife: "Камеры: животные", mountain: "Камеры: горы и небо", nature: "Камеры: природа",
+  dam: "Камеры: река и плотина", stadium: "Камеры: стадион", landmark: "Камеры: достопримечательности",
+  know: "Познавательное", adult: "18+", lake: "Камеры: озеро", live: "Камеры: прямой эфир (YouTube)", landscape: "Камеры: пейзаж", construction: "Камеры: стройка",
+};
+const topicName = t => TOPICS[t] || ENV[t] || t;
+
+const video = $("#video"), mjpeg = $("#mjpeg"), yt = $("#yt"), wall = $("#wall"), list = $("#list");
+const qInput = $("#q"), countrySel = $("#country"), topicSel = $("#topic"), onlyOk = $("#onlyOk"), catSel = $("#cat"), withYt = $("#withYt");
+withYt.checked = store.get("okno.yt", false);
+// Закрытый раздел: только после регистрации/входа (аккаунт хранится на этом компьютере, сервер сам не отдаёт его каналы без входа)
+const regBtn = $("#regBtn");
+let adultOn = false, adultUser = "";
+const allowed = it => !it.ad || adultOn;
+// 18+ живут только во вкладке «18+», а там — только они
+const inMode = it => (mode === "adult") === !!it.ad;
+const listable = it => allowed(it) && inMode(it);
+
+let ITEMS = [], view = [], shown = PAGE, current = null, curV = null;
+let mode = store.get("okno.mode", "all");
+let selCountry = store.get("okno.country", ""), selTopic = store.get("okno.topic", "");
+let userMuted = store.get("okno.muted", false);
+let userVol = Math.min(1, Math.max(0, store.get("okno.vol", 1)));
+const health = { ok: new Set(), bad: new Set(), pref: {}, dv: new Set(), ts: new Set() };
+const dead = store.get("okno.dead", {});
+for (const u in dead) if (Date.now() - dead[u] > DAY) delete dead[u];
+
+/* ---- варианты канала: основная ссылка + запасные из других списков ---- */
+function vlist(it) {
+  if (!it._v) {
+    it._v = [it, ...(it.alt || []).map(a => ({ ...it, u: a.u, x: a.x, s: a.s, ua: a.ua, r: a.r, q: a.q || it.q, alt: null, _v: null }))];
+    it._v.forEach((v, i) => v.vi = i);
+  }
+  return it._v;
+}
+const vDead = v => !!(dead[v.u] && Date.now() - dead[v.u] < DAY) || health.dv.has(v.id + ":" + v.vi);
+function pickVariant(it, tried) {
+  const vs = vlist(it), first = health.pref[it.id] ?? 0;
+  const order = [first, ...vs.keys()].filter((i, k, a) => a.indexOf(i) === k);
+  for (const i of order) if (!tried.has(i) && !vDead(vs[i])) {
+    if (health.ts.has(it.id + ":" + i)) vs[i].x = "ts";  // сырой MPEG-TS без плейлиста — играет mpegts.js
+    return vs[i];
+  }
+  return null;
+}
+function isDead(it) { return !health.ok.has(it.id) && (health.bad.has(it.id) || vlist(it).every(vDead)); }
+function markDead(v) {
+  dead[v.u] = Date.now(); store.set("okno.dead", dead);
+  const it = ITEMS[v.id];
+  if (vlist(it).every(vDead)) health.ok.delete(it.id);
+  paintRow(it);
+}
+function markOk(v) {
+  if (dead[v.u]) { delete dead[v.u]; store.set("okno.dead", dead); }
+  health.dv.delete(v.id + ":" + v.vi);
+  const it = ITEMS[v.id];
+  health.ok.add(it.id); health.bad.delete(it.id); paintRow(it);
+}
+function dotClass(it) { return health.ok.has(it.id) ? "ok" : isDead(it) ? "bad" : ""; }
+function src(it, url) {
+  const p = new URLSearchParams({ u: url || it.u });
+  if (it.ua) p.set("ua", it.ua);
+  if (it.r) p.set("r", it.r);
+  return "/p?" + p;
+}
+function subline(it) {
+  const parts = [countryName(it)];
+  if (it.k === "tv") {
+    if (it.t && it.t[0]) parts.push(topicName(it.t[0]));
+    if (it.q) parts.push(it.q);
+    if (it.lb) parts.push(it.lb.join(", "));
+  } else {
+    if (it.lc && it.lc !== parts[0] && !it.lc.includes(it.n)) parts.push(it.lc);
+    if (it.g) parts.push(ENV[it.g] || it.g);
+    if (it.a) parts.push(it.a);
+  }
+  return parts.join(" · ");
+}
+
+/* ---------------- фильтр и список ---------------- */
+function kindFor(m) { return m === "tv" ? "tv" : (m === "cam" || m === "wall") ? "cam" : null; }
+// Тип камер: пока пользователь не выбрал сам, в стене показываем виды, в остальных вкладках — всё.
+function effCat() { const c = store.get("okno.cat", null); return c === null ? (mode === "wall" ? "view" : "") : c; }
+function passBase(it, kind, cat) {
+  if (!listable(it)) return false;
+  if (kind && it.k !== kind) return false;
+  if (it.k !== "cam") return true;
+  if (cat && it.cat !== cat) return false;
+  return withYt.checked || it.x !== "yt";
+}
+const hasTopic = (it, t) => !t || (it.t && it.t.includes(t));
+
+// Страна и тема работают вместе: счётчики страны учитывают тему, счётчики темы — страну.
+function buildFacets() {
+  const kind = kindFor(mode), cat = effCat();
+  catSel.value = cat; catSel.hidden = mode === "tv" || mode === "adult";
+  const base = ITEMS.filter(it => passBase(it, kind, cat));
+  let countries, topics;
+  for (let pass = 0; pass < 2; pass++) {
+    countries = new Map(); topics = new Map();
+    for (const it of base) {
+      if (hasTopic(it, selTopic)) {
+        const c = countries.get(it.c) || { n: countryName(it), k: 0 };
+        c.k++; countries.set(it.c, c);
+      }
+      if (!selCountry || it.c === selCountry) for (const t of it.t || []) topics.set(t, (topics.get(t) || 0) + 1);
+    }
+    let changed = false;
+    if (selCountry && !countries.has(selCountry)) { selCountry = ""; changed = true; }
+    if (selTopic && !topics.has(selTopic)) { selTopic = ""; changed = true; }
+    if (!changed) break;
+  }
+  const copts = [...countries].sort((a, b) => (b[0] === "RU") - (a[0] === "RU") || a[1].n.localeCompare(b[1].n, "ru"));
+  const ctotal = copts.reduce((s, [, c]) => s + c.k, 0);
+  countrySel.innerHTML = `<option value="">Все страны (${ctotal})</option>` +
+    copts.map(([code, c]) => `<option value="${esc(code)}">${esc(c.n)} (${c.k})</option>`).join("");
+  countrySel.value = selCountry;
+  const topts = [...topics].sort((a, b) => (b[0] === "know") - (a[0] === "know") || b[1] - a[1]);
+  const ttotal = base.filter(it => !selCountry || it.c === selCountry).length;
+  topicSel.innerHTML = `<option value="">Все темы (${ttotal})</option>` +
+    topts.map(([t, n]) => `<option value="${esc(t)}">${esc(topicName(t))} (${n})</option>`).join("");
+  topicSel.value = selTopic;
+}
+
+function applyFilter() {
+  const q = norm(qInput.value.trim()), kind = kindFor(mode), hide = onlyOk.checked, cat = effCat();
+  view = ITEMS.filter(it => passBase(it, kind, cat) && (!selCountry || it.c === selCountry) && hasTopic(it, selTopic)
+    && (!hide || !isDead(it)) && (!q || it._s.includes(q)));
+  view.sort((a, b) => health.ok.has(b.id) - health.ok.has(a.id)
+    || (selTopic === "know" ? (a.kr ?? 99) - (b.kr ?? 99) : 0));  // «Познавательное»: бренды серии сверху
+  shown = PAGE;
+  renderList();
+  if (mode === "wall") buildWall();
+}
+
+function rowHtml(it) {
+  const ico = it.k === "tv" && it.l
+    ? `<img loading="lazy" alt="" src="${esc(src({}, it.l))}" onerror="this.replaceWith(Object.assign(document.createElement('span'),{textContent:'ТВ'}))">`
+    : `<svg class="icon"><use href="#i-${it.k === "tv" ? "tv" : "cam"}"/></svg>`;
+  return `<li data-id="${it.id}" class="${current && current.id === it.id ? "on" : ""}">
+    <span class="ico">${ico}</span>
+    <span class="t"><b>${esc(it.n)}</b><small>${esc(subline(it))}</small></span>
+    <span class="dot ${dotClass(it)}"></span></li>`;
+}
+
+function renderList() {
+  if (!view.length) {
+    list.innerHTML = `<li class="empty">${ITEMS.length ? "Ничего не найдено. Попробуйте другую страну или тему, либо снимите галочку «Скрывать неработающие»." : "Каталог загружается…"}</li>`;
+    return;
+  }
+  let html = view.slice(0, shown).map(rowHtml).join("");
+  if (view.length > shown) html += `<li class="more">Показано ${shown} из ${view.length}. Уточните поиск, страну или тему.<br><button id="bMore">Показать ещё</button></li>`;
+  list.innerHTML = html;
+}
+
+function paintRow(it) {
+  const li = list.querySelector(`li[data-id="${it.id}"]`);
+  if (li) li.querySelector(".dot").className = "dot " + dotClass(it);
+}
+function highlight() {
+  list.querySelectorAll("li.on").forEach(li => li.classList.remove("on"));
+  if (!current) return;
+  const li = list.querySelector(`li[data-id="${current.id}"]`);
+  if (li) { li.classList.add("on"); li.scrollIntoView({ block: "nearest" }); }
+}
+
+list.addEventListener("click", e => {
+  if (e.target.id === "bMore") { shown += PAGE; renderList(); return; }
+  const li = e.target.closest("li[data-id]");
+  if (!li) return;
+  const it = ITEMS[+li.dataset.id];
+  if (mode === "wall") setMode(it.k === "tv" ? "tv" : "cam", false);
+  play(it, 1, true);
+});
+
+/* ---------------- воспроизведение ---------------- */
+let hls = null, watchdog = null, playToken = 0, skipChain = 0, osdTimer = null;
+
+// «Загрузка…» вместо чёрного экрана, пока канал подключается (в т.ч. при переборе запасных ссылок)
+const LOADING_RE = /^(Подключаюсь|Источник не ответил|Не отвечает)/;
+function msg(t) {
+  const ld = LOADING_RE.test(t || "");
+  $("#loading").hidden = !ld;
+  $("#msg").textContent = ld ? "" : (t || "");
+}
+function showOsd(it) {
+  $("#osdKind").textContent = it.k === "tv" ? "Телеканал" : it.cat === "road" ? "Дорожная камера" : "Видовая камера";
+  $("#osdName").textContent = it.n;
+  $("#osdSub").textContent = subline(it);
+  const v = curV && curV.id === it.id ? curV : it, n = vlist(it).length;
+  $("#osdSrc").textContent = "Источник: " + ((v.s || []).join(", ") || "—") + (n > 1 ? ` · вариант ${v.vi + 1} из ${n}` : "");
+  const osd = $("#osd");
+  osd.classList.remove("fade");
+  clearTimeout(osdTimer);
+  osdTimer = setTimeout(() => osd.classList.add("fade"), 5000);
+}
+function stopPlayback() {
+  clearTimeout(watchdog);
+  if (hls) { hls.destroy(); hls = null; }
+  video.onplaying = video.onerror = null;
+  video.pause(); video.removeAttribute("src"); video.load();
+  mjpeg.onload = mjpeg.onerror = null; mjpeg.removeAttribute("src"); mjpeg.hidden = true;
+  yt.onload = null; yt.removeAttribute("src"); yt.hidden = true;
+}
+
+function attach(el, it, onOk, onFail, onProgress) {
+  // Общий запуск для главного экрана и плиток стены. Возвращает объект hls (или null).
+  if (it.x === "mjpeg") { el.onload = onOk; el.onerror = onFail; el.src = src(it); return null; }
+  if (it.x === "jpeg") return startStill(el, it, onOk, onFail);
+  el.onplaying = onOk; el.onerror = onFail;
+  if (it.x === "ts") return attachTs(el, it, onFail, onProgress);
+  if (it.x === "mp4" || !(window.Hls && Hls.isSupported())) { el.loop = it.x === "mp4"; el.src = src(it); tryPlay(el); return null; }
+  el.loop = false;
+  // Быстрый старт: начинаем с самого лёгкого уровня и коротким буфером, после первого кадра
+  // буфер растёт, а ABR сам поднимает качество.
+  const h = new Hls({ startLevel: 0, startFragPrefetch: true, capLevelToPlayerSize: true, maxBufferLength: 6, maxMaxBufferLength: 30, backBufferLength: 30,
+    manifestLoadingTimeOut: 8000, manifestLoadingMaxRetry: 1, manifestLoadingRetryDelay: 500,
+    levelLoadingTimeOut: 8000, levelLoadingMaxRetry: 1, levelLoadingRetryDelay: 500,
+    fragLoadingTimeOut: 15000, fragLoadingMaxRetry: 2, fragLoadingRetryDelay: 500 });
+  let mediaRetry = 0;
+  h.on(Hls.Events.ERROR, (e, d) => {
+    if (!d.fatal) return;
+    if (d.type === Hls.ErrorTypes.MEDIA_ERROR && mediaRetry++ < 2) { h.recoverMediaError(); return; }
+    onFail();
+  });
+  h.on(Hls.Events.MANIFEST_PARSED, () => tryPlay(el));
+  if (onProgress) for (const ev of [Hls.Events.MANIFEST_LOADED, Hls.Events.LEVEL_LOADED, Hls.Events.FRAG_LOADED]) h.on(ev, onProgress);
+  el.addEventListener("playing", () => { h.config.maxBufferLength = 30; }, { once: true });
+  h.loadSource(src(it));
+  h.attachMedia(el);
+  return h;
+}
+// Сырой MPEG-TS по HTTP (UDP-прокси провайдеров, «http://ip:порт/…» без m3u8): hls.js не умеет, играет mpegts.js
+function attachTs(el, it, onFail, onProgress) {
+  if (!(window.mpegts && mpegts.isSupported())) { onFail(); return null; }
+  el.loop = false;
+  const p = mpegts.createPlayer({ type: "mpegts", isLive: true, url: location.origin + src(it) },
+    { enableWorker: true, liveBufferLatencyChasing: true, liveBufferLatencyMaxLatency: 5, liveBufferLatencyMinRemain: 1, lazyLoad: false });
+  p.on(mpegts.Events.ERROR, onFail);
+  if (onProgress) p.on(mpegts.Events.MEDIA_INFO, onProgress);
+  p.attachMediaElement(el);
+  p.load();
+  tryPlay(el);
+  return p;
+}
+// Снимок JPEG: перезагружаем раз в несколько секунд (ri), новый кадр подставляем, когда он целиком загрузился.
+function startStill(el, it, onOk, onFail) {
+  let timer = 0, stopped = false, first = true, errors = 0;
+  const every = (it.ri || 6) * 1000;
+  const h = { paused: false, destroy() { stopped = true; clearTimeout(timer); } };
+  const next = () => { if (!stopped) timer = setTimeout(load, every); };
+  function load() {
+    if (document.hidden || h.paused) return next();
+    const im = new Image();
+    im.onload = () => { if (stopped) return; errors = 0; el.src = im.src; if (first) { first = false; onOk(); } next(); };
+    im.onerror = () => { if (stopped) return; if (first || ++errors > 3) onFail(); else next(); };
+    im.src = src(it) + "&t=" + Date.now();
+  }
+  load();
+  return h;
+}
+function ytSrc(it) {
+  const id = new URL(it.u).searchParams.get("v");
+  return `https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}?autoplay=1&mute=1&playsinline=1&rel=0&enablejsapi=1`;
+}
+function tryPlay(el) {
+  const p = el.play();
+  if (p) p.catch(() => {
+    if (!el.muted) { el.muted = true; if (el === video) { $("#unmute").hidden = false; syncControls(); } el.play().catch(() => {}); }
+  });
+}
+
+function play(it, dir = 1, byUser = false) {
+  if (!it || !allowed(it)) return;
+  if (byUser) skipChain = 0;
+  current = it; curV = null;
+  const tok = ++playToken;
+  store.set("okno.last", it.u);
+  const tried = new Set();
+  highlight(); msg("Подключаюсь…");
+
+  const launch = () => {
+    stopPlayback();
+    $("#unmute").hidden = true;
+    const v = pickVariant(it, tried);
+    if (!v) return giveUp();
+    tried.add(v.vi); curV = v;
+    showOsd(it);
+    let started = false;
+    const ok = () => { if (tok !== playToken) return; started = true; clearTimeout(watchdog); skipChain = 0; msg(""); markOk(v); setTimeout(() => { if (tok === playToken) warmItem(nextPlayable(dir)); }, 800); };
+    const fail = () => {
+      if (tok !== playToken) return;
+      clearTimeout(watchdog); markDead(v);
+      if (pickVariant(it, tried)) { msg("Источник не ответил — пробую другой…"); setTimeout(() => { if (tok === playToken) launch(); }, 50); return; }
+      giveUp();
+    };
+    // Ждём не дольше 8 с тишины (YouTube — 15 с); каждый загруженный манифест/сегмент продлевает ожидание, но не дольше 20 с всего.
+    const idle = v.x === "yt" ? 15000 : 8000, t0 = Date.now();
+    const arm = () => {
+      if (tok !== playToken || started) return;
+      clearTimeout(watchdog);
+      watchdog = setTimeout(fail, Math.max(500, Math.min(idle, 20000 - (Date.now() - t0))));
+    };
+    arm();
+    if (v.x === "mjpeg" || v.x === "jpeg") { video.hidden = true; mjpeg.hidden = false; hls = attach(mjpeg, v, ok, fail); }
+    else if (v.x === "yt") { video.hidden = true; yt.hidden = false; ytMuted = true; ytPaused = false; yt.onload = ok; yt.src = ytSrc(v); }
+    else {
+      video.hidden = false;
+      video.muted = it.k === "cam" ? true : userMuted;
+      video.volume = userVol;
+      hls = attach(video, v, ok, fail, arm);
+    }
+    syncControls();
+  };
+  const giveUp = () => {
+    if (tok !== playToken) return;
+    if (++skipChain > 12) { stopPlayback(); msg("12 подряд не ответили. Проверьте интернет или выберите другую страну."); return; }
+    msg("Не отвечает — переключаю…");
+    setTimeout(() => { if (tok === playToken) step(dir); }, 150);
+  };
+  launch();
+}
+
+function nextPlayable(dir) {
+  const pool = view.length ? view : ITEMS.filter(listable);
+  if (!pool.length) return null;
+  let i = current ? pool.indexOf(current) : -1;
+  for (let n = 0; n < pool.length; n++) {
+    i = (i + dir + pool.length) % pool.length;
+    if (!isDead(pool[i])) return pool[i];
+  }
+  return null;
+}
+function step(dir) {
+  const it = nextPlayable(dir);
+  if (it) return play(it, dir);
+  if (view.length || ITEMS.length) msg("В этом списке не осталось рабочих ссылок.");
+}
+
+/* «Подогрев»: сервер заранее тянет манифест, лёгкий уровень и первый сегмент канала, который скоро включат
+   (следующий в списке и тот, на который навели мышь). Тогда клик по нему стартует почти мгновенно. */
+const warmed = new Map();
+function warmItem(it) {
+  if (!it || it === current || !allowed(it)) return;
+  const v = pickVariant(it, new Set());
+  if (!v || v.x !== "hls") return;
+  const t = warmed.get(v.u);
+  if (t && Date.now() - t < 20000) return;
+  warmed.set(v.u, Date.now());
+  fetch(src(v).replace("/p?", "/warm?"), { priority: "low" }).catch(() => {});
+}
+let hoverT = 0;
+list.addEventListener("mouseover", e => {
+  const li = e.target.closest("li[data-id]");
+  clearTimeout(hoverT);
+  if (li) hoverT = setTimeout(() => warmItem(ITEMS[+li.dataset.id]), 250);
+});
+list.addEventListener("mouseleave", () => clearTimeout(hoverT));
+function randomPick() {
+  if (mode === "wall") return buildWall();
+  const pool = (view.length ? view : ITEMS.filter(listable)).filter(it => !isDead(it) && it !== current);
+  const good = pool.filter(it => health.ok.has(it.id));
+  const from = good.length > 20 ? good : pool;
+  if (from.length) play(from[Math.floor(Math.random() * from.length)], 1, true);
+}
+
+/* ---------------- стена камер ---------------- */
+let tiles = [];
+function destroyWall() { tiles.forEach(t => { clearTimeout(t.timer); t.hls && t.hls.destroy(); }); tiles = []; wall.innerHTML = ""; }
+function buildWall() {
+  destroyWall(); stopPlayback(); current = null; curV = null; syncControls();
+  $("#osd").classList.add("fade"); msg("");
+  const pool = view.filter(it => it.k === "cam" && it.x !== "yt" && !isDead(it));
+  for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+  pool.sort((a, b) => health.ok.has(b.id) - health.ok.has(a.id));
+  if (!pool.length) { msg("Нет камер для стены — выберите другую страну или тему."); return; }
+  const queue = pool.slice(9);
+  pool.slice(0, 9).forEach(it => addTile(it, queue));
+}
+function addTile(it, queue, replace) {
+  const div = document.createElement("div");
+  div.className = "tile";
+  if (replace) replace.replaceWith(div); else wall.append(div);
+  const t = { div, it, hls: null, timer: 0 };
+  const tried = new Set();
+  const label = document.createElement("span");
+  label.textContent = `${it.n} · ${countryName(it)}`;
+  const run = () => {
+    const v = pickVariant(it, tried);
+    if (!v) return replaceTile();
+    tried.add(v.vi);
+    const el = document.createElement(v.x === "mjpeg" || v.x === "jpeg" ? "img" : "video");
+    if (el.tagName === "VIDEO") { el.muted = true; el.playsInline = true; }
+    div.replaceChildren(el, label);
+    let started = false;
+    const ok = () => { started = true; clearTimeout(t.timer); markOk(v); };
+    const fail = () => {
+      clearTimeout(t.timer); if (t.hls) { t.hls.destroy(); t.hls = null; } markDead(v);
+      if (!tiles.includes(t)) return;
+      run();
+    };
+    const t0 = Date.now();
+    const arm = () => {
+      if (started || !tiles.includes(t)) return;
+      clearTimeout(t.timer);
+      t.timer = setTimeout(fail, Math.max(500, Math.min(10000, 20000 - (Date.now() - t0))));
+    };
+    arm();
+    t.hls = attach(el, v, ok, fail, arm);
+  };
+  const replaceTile = () => {
+    tiles = tiles.filter(x => x !== t);
+    const next = queue.shift();
+    if (next) addTile(next, queue, div); else div.remove();
+  };
+  div.onclick = () => { setMode("cam", false); play(it, 1, true); };
+  tiles.push(t);
+  run();
+}
+
+/* ---------------- звук, громкость, пауза ---------------- */
+let ytMuted = true, ytPaused = false, barTimer = 0;
+const kindNow = () => !current || !curV ? "" : curV.x === "yt" ? "yt" : curV.x === "jpeg" ? "still" : curV.x === "mjpeg" ? "mjpeg" : "video";
+function ytCmd(func, args) { try { yt.contentWindow.postMessage(JSON.stringify({ event: "command", func, args: args || [] }), "*"); } catch {} }
+const isMuted = () => kindNow() === "yt" ? ytMuted : video.muted || video.volume === 0;
+const isPaused = () => { const k = kindNow(); return k === "yt" ? ytPaused : k === "still" ? !!(hls && hls.paused) : k === "video" ? video.paused : false; };
+
+function syncControls() {
+  const k = kindNow(), hasSound = k === "video" || k === "yt", canPause = k === "video" || k === "yt" || k === "still";
+  const muted = hasSound && isMuted(), paused = canPause && isPaused();
+  $("#pPlay").disabled = !canPause;
+  $("#pPlay").querySelector("use").setAttribute("href", paused ? "#i-play" : "#i-pause");
+  $("#pMute").disabled = !hasSound; $("#pVol").disabled = !hasSound;
+  const vol = Math.round(userVol * 100);
+  $("#pVol").value = muted ? 0 : vol;
+  const icon = !hasSound ? "#i-mute" : muted ? "#i-mute" : vol < 50 ? "#i-vlow" : "#i-sound";
+  $("#pMute").querySelector("use").setAttribute("href", icon);
+  $("#pState").textContent = !k ? "" : !hasSound ? "Нет звука (снимок)" : paused ? "Пауза" : muted ? "Звук выключен" : `Громкость ${vol}%`;
+  const badge = $("#badge");
+  badge.querySelector("use").setAttribute("href", icon);
+  badge.hidden = !hasSound;
+  $("#unmute").hidden = !(k === "video" && muted && current && current.k === "tv");
+}
+function flashBar() {
+  const bar = $("#pbar"), badge = $("#badge");
+  if (mode === "wall") { bar.classList.remove("show"); return; }
+  bar.classList.add("show"); badge.classList.remove("fade");
+  clearTimeout(barTimer);
+  barTimer = setTimeout(() => { if (!bar.matches(":hover") && !bar.contains(document.activeElement)) bar.classList.remove("show"); badge.classList.add("fade"); }, 3000);
+}
+function setMuted(m) {
+  const k = kindNow();
+  if (k === "yt") { ytMuted = m; ytCmd(m ? "mute" : "unMute"); if (!m) ytCmd("setVolume", [userVol * 100]); }
+  else if (k === "video") { video.muted = m; if (!m) { if (video.volume === 0) userVol = 0.5; video.volume = userVol; } }
+  else return;
+  if (current && current.k === "tv") { userMuted = m; store.set("okno.muted", m); }
+  if (!m) $("#unmute").hidden = true;
+  syncControls();
+}
+function toggleMute(force) {
+  const k = kindNow();
+  if (k !== "video" && k !== "yt") { msg("У этой камеры нет звука"); setTimeout(() => msg(""), 1200); return; }
+  setMuted(force ?? !isMuted());
+  flashBar();
+}
+function setVolume(v) {
+  userVol = Math.min(1, Math.max(0, v)); store.set("okno.vol", userVol);
+  const k = kindNow();
+  if (k === "video") { video.volume = userVol; if (userVol > 0 && video.muted) setMuted(false); }
+  else if (k === "yt") { ytCmd("setVolume", [userVol * 100]); if (userVol > 0 && ytMuted) setMuted(false); }
+  syncControls(); flashBar();
+}
+function togglePause() {
+  const k = kindNow();
+  if (k === "video") { video.paused ? video.play().catch(() => {}) : video.pause(); }
+  else if (k === "still") { hls.paused = !hls.paused; }
+  else if (k === "yt") { ytPaused = !ytPaused; ytCmd(ytPaused ? "pauseVideo" : "playVideo"); }
+  else return;
+  syncControls(); flashBar();
+}
+$("#pPlay").onclick = togglePause;
+$("#pMute").onclick = () => toggleMute();
+$("#pVol").addEventListener("input", e => setVolume(e.target.value / 100));
+$("#unmute").onclick = () => toggleMute(false);
+video.addEventListener("play", syncControls); video.addEventListener("pause", syncControls);
+video.addEventListener("volumechange", syncControls);
+$("#pbar").addEventListener("mouseenter", () => clearTimeout(barTimer));
+$("#pbar").addEventListener("mouseleave", flashBar);
+
+/* ---------------- режимы ---------------- */
+function setMode(m, autoplay = true) {
+  if (m === "adult" && mode !== "adult" && (selCountry || selTopic)) {  // вкладка 18+: страна/тема от других вкладок не нужны
+    selCountry = ""; selTopic = ""; store.set("okno.country", ""); store.set("okno.topic", "");
+  }
+  mode = m; store.set("okno.mode", m);
+  document.querySelectorAll(".tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.mode === m));
+  if (m !== "wall") destroyWall(); else { $("#pbar").classList.remove("show"); $("#loading").hidden = true; }
+  buildFacets();
+  applyFilter();
+  if (m !== "wall" && autoplay && (!current || !inMode(current) || (kindFor(m) && current.k !== kindFor(m)))) randomPick();
+}
+document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => setMode(b.dataset.mode));
+
+let ft = 0;
+qInput.addEventListener("input", () => { clearTimeout(ft); ft = setTimeout(applyFilter, 150); });
+function facetChanged() {
+  store.set("okno.country", selCountry); store.set("okno.topic", selTopic);
+  buildFacets(); applyFilter();
+  if (mode !== "wall" && view.length) play(view.find(it => !isDead(it)) || view[0], 1, true);
+}
+countrySel.addEventListener("change", () => { selCountry = countrySel.value; facetChanged(); });
+topicSel.addEventListener("change", () => { selTopic = topicSel.value; facetChanged(); });
+onlyOk.addEventListener("change", applyFilter);
+catSel.addEventListener("change", () => { store.set("okno.cat", catSel.value); buildFacets(); applyFilter(); });
+withYt.addEventListener("change", () => { store.set("okno.yt", withYt.checked); buildFacets(); applyFilter(); });
+
+// 18+: регистрация (имя + пароль) или вход; после этого страница перезагружается и сервер отдаёт каналы 18+
+// Вход запоминается (cookie на год, продлевается). Галочка «Показывать 18+» у вошедшего только прячет/показывает вкладку,
+// выход — отдельная кнопка сверху справа. Забыли пароль — сброс по коду восстановления (режим "reset").
+const ageBox = $("#age"), regName = $("#regName"), regPass = $("#regPass"), regAge = $("#regAge"), regErr = $("#regErr"), regCodeIn = $("#regCodeIn");
+let regMode = "register";
+const REG_TXT = {
+  register: ["Регистрация", "Придумайте имя и пароль. Они хранятся только на этом компьютере и никуда не отправляются. Потом вы получите код восстановления на случай, если забудете пароль.", "Зарегистрироваться", "Уже есть аккаунт? Войти"],
+  login: ["Вход", "Введите имя и пароль. Вход запоминается на этом компьютере, повторно вводить не придётся.", "Войти", "Нет аккаунта? Зарегистрироваться"],
+  reset: ["Сброс пароля", "Введите имя, код восстановления (его выдали при регистрации) и новый пароль. Нет кода: запустите reset18.bat в папке программы и зарегистрируйтесь заново.", "Сменить пароль и войти", "Вспомнили пароль? Войти"],
+};
+function setRegMode(m) {
+  regMode = m;
+  const t = REG_TXT[m];
+  $("#ageT").textContent = t[0]; $("#regHint").textContent = t[1]; $("#regGo").textContent = t[2]; $("#regSwitch").textContent = t[3];
+  $("#regAgeRow").hidden = m !== "register";
+  regCodeIn.hidden = m !== "reset"; regCodeIn.required = m === "reset";
+  $("#regForgot").parentElement.hidden = m !== "login";
+  regPass.placeholder = m === "reset" ? "Новый пароль (от 4 символов)" : "Пароль (от 4 символов)";
+  regPass.autocomplete = m === "login" ? "current-password" : "new-password";
+  regErr.textContent = ""; regWarn.hidden = true;
+}
+function openAge() { setRegMode(store.get("okno.hasAcc", false) ? "login" : "register"); regName.value = store.get("okno.lastName", ""); ageBox.hidden = false; (regName.value ? regPass : regName).focus(); }
+function closeAge() {
+  if (!$("#codeBox").hidden) return location.reload();  // код показан, аккаунт уже создан/сброшен
+  ageBox.hidden = true; regPass.value = "";
+}
+async function post(path, body) {
+  const r = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
+  return { ok: r.ok, d: await r.json().catch(() => ({})) };
+}
+regBtn.onclick = openAge;
+$("#logoutBtn").onclick = async () => {
+  try { await post("/api/logout"); } catch {}
+  if (mode === "adult") store.set("okno.mode", "all");
+  location.reload();
+};
+$("#regSwitch").onclick = e => { e.preventDefault(); setRegMode(regMode === "register" ? "login" : regMode === "login" ? "register" : "login"); };
+$("#regForgot").onclick = e => { e.preventDefault(); setRegMode("reset"); regCodeIn.focus(); };
+$("#codeCopy").onclick = async () => { try { await navigator.clipboard.writeText($("#codeVal").textContent); $("#codeCopy").textContent = "Скопировано"; } catch {} };
+$("#codeOk").onclick = () => location.reload();
+$("#regForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  regErr.textContent = "";
+  if (regMode === "register" && !regAge.checked) { regErr.textContent = "Поставьте галочку: вам должно быть 18 лет"; return; }
+  try {
+    const { ok, d } = await post("/api/" + regMode, { name: regName.value, password: regPass.value, age: regAge.checked, code: regCodeIn.value });
+    if (!ok) { regErr.textContent = d.error || "Не получилось"; return; }
+    store.set("okno.hasAcc", true); store.set("okno.mode", "adult");
+    store.set("okno.lastName", d.user || regName.value.trim());
+    store.set("okno.country", ""); store.set("okno.topic", "");  // при входе на 18+ фильтры страны и темы сбрасываются
+    regPass.value = "";
+    if (d.code) {  // регистрация или сброс: показываем код восстановления, дальше только по кнопке
+      $("#codeVal").textContent = d.code; $("#regForm").hidden = true; $("#codeBox").hidden = false;
+    } else location.reload();
+  } catch { regErr.textContent = "Нет связи с программой"; }
+});
+// Предупреждение о раскладке: русская буква или Caps Lock при вводе пароля
+const regWarn = $("#regWarn");
+function layoutWarn(e) {
+  const k = e.key || "";
+  let m = "";
+  if (/^[А-Яа-яЁё]$/.test(k)) m = "Включена русская раскладка. Если пароль английский, переключите её (Alt+Shift или Win+Пробел).";
+  else if (e.getModifierState && e.getModifierState("CapsLock") && /^[A-Za-z]$/.test(k)) m = "Включён Caps Lock: буквы будут заглавными.";
+  else if (/^[A-Za-z]$/.test(k)) m = "";
+  else return;
+  regWarn.textContent = m; regWarn.hidden = !m;
+}
+regPass.addEventListener("keydown", layoutWarn);
+regPass.addEventListener("blur", () => { regWarn.hidden = true; });
+$("#ageNo").onclick = closeAge;
+ageBox.addEventListener("click", e => { if (e.target === ageBox) closeAge(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !ageBox.hidden) closeAge(); }, true);
+
+$("#bPrev").onclick = () => { skipChain = 0; step(-1); };
+$("#bNext").onclick = () => { skipChain = 0; step(1); };
+$("#bRandom").onclick = randomPick;
+function toggleFull() {
+  if (document.fullscreenElement) document.exitFullscreen();
+  else $("#screen").requestFullscreen?.().catch(() => {});
+}
+$("#bFull").onclick = toggleFull;
+$("#screen").addEventListener("dblclick", e => { if (!e.target.closest("#pbar")) toggleFull(); });
+$("#screen").addEventListener("mousemove", () => { if (current && mode !== "wall") { showOsd(current); flashBar(); } });
+$("#screen").addEventListener("pointerdown", () => { if (mode !== "wall") flashBar(); });
+
+document.addEventListener("keydown", e => {
+  if (!ageBox.hidden) return;
+  const typing = /^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName);
+  if (e.key === "Escape") { e.target.blur?.(); return; }
+  if (typing) return;
+  const k = e.key.toLowerCase();
+  if (e.key === "ArrowDown" || e.key === "PageDown") { e.preventDefault(); skipChain = 0; step(1); }
+  else if (e.key === "ArrowUp" || e.key === "PageUp") { e.preventDefault(); skipChain = 0; step(-1); }
+  else if (e.key === "ArrowLeft") { e.preventDefault(); setVolume((isMuted() ? 0 : userVol) - 0.05); }
+  else if (e.key === "ArrowRight") { e.preventDefault(); setVolume((isMuted() ? 0 : userVol) + 0.05); }
+  else if (e.key === " " && e.target.tagName !== "BUTTON") { e.preventDefault(); togglePause(); }
+  else if (k === "r" || k === "к") randomPick();
+  else if (k === "f" || k === "а") toggleFull();
+  else if (k === "m" || k === "ь") toggleMute();
+  else if (k === "w" || k === "ц") setMode(mode === "wall" ? "cam" : "wall");
+  else if (e.key === "/") { e.preventDefault(); qInput.focus(); }
+});
+
+/* ---------------- проверка ссылок ---------------- */
+async function pollHealth() {
+  try {
+    const h = await (await fetch("/api/health")).json();
+    for (const id of h.ok) if (!dead[ITEMS[id]?.u] || (ITEMS[id].alt || []).length) health.ok.add(id);
+    for (const id of h.bad) if (!health.ok.has(id)) health.bad.add(id);
+    health.pref = h.pref || {};
+    health.dv = new Set(h.dv || []);
+    health.ts = new Set(h.ts || []);
+    const good = health.ok.size;
+    if (h.running) {
+      const pct = h.total ? Math.round(h.done / h.total * 100) : 0;
+      $("#health").innerHTML = `Проверяю ссылки в фоне: <b>${h.done.toLocaleString("ru")}</b> из ${h.total.toLocaleString("ru")} · рабочих <b>${good.toLocaleString("ru")}</b><div class="bar"><i style="width:${pct}%"></i></div>`;
+      list.querySelectorAll("li[data-id]").forEach(li => { li.querySelector(".dot").className = "dot " + dotClass(ITEMS[+li.dataset.id]); });
+      setTimeout(pollHealth, 6000);
+    } else {
+      $("#health").innerHTML = `Рабочих сейчас: <b>${good.toLocaleString("ru")}</b> из ${ITEMS.filter(allowed).length.toLocaleString("ru")} · проверка раз в 12 часов`;
+      if (mode !== "wall") applyFilter();
+    }
+  } catch { setTimeout(pollHealth, 10000); }
+}
+
+/* ---------------- старт ---------------- */
+(async function init() {
+  try {
+    const me = await (await fetch("/api/me")).json();
+    adultUser = me.user || ""; adultOn = !!adultUser && !store.get("okno.adultHide", false);
+    if (adultUser) {  // галочка и вкладка раздела создаются только у вошедшего
+      const lab = document.createElement("label"); lab.className = "chk";
+      lab.title = "Вы вошли как " + adultUser + ". Галочка показывает или прячет вкладку 18+ (выход — кнопка справа сверху)";
+      lab.innerHTML = `<input type="checkbox" id="adultChk"> Показывать 18+`;
+      const chk = lab.firstElementChild; chk.checked = adultOn;
+      chk.addEventListener("change", () => {
+        store.set("okno.adultHide", !chk.checked);
+        if (!chk.checked && mode === "adult") store.set("okno.mode", "all");
+        location.reload();
+      });
+      document.querySelector(".filters").appendChild(lab);
+    }
+    if (adultOn) {
+      const tab = document.createElement("button");
+      tab.setAttribute("role", "tab"); tab.className = "tab18"; tab.dataset.mode = "adult"; tab.textContent = "18+"; tab.title = "Каналы для взрослых";
+      tab.onclick = () => setMode("adult");
+      document.querySelector(".tabs").appendChild(tab);
+    }
+    regBtn.hidden = !!adultUser;
+    $("#who").hidden = !adultUser; $("#whoName").textContent = adultUser;
+    if (mode === "adult" && !adultOn) mode = "all";
+  } catch {}
+  try {
+    const r = await fetch("/api/catalog");
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || r.status);
+    ITEMS = data.items;
+  } catch (e) {
+    $("#health").textContent = "Не удалось загрузить каталог: " + e.message + ". Проверьте интернет и перезапустите.";
+    return;
+  }
+  for (const it of ITEMS) it._s = norm(`${it.n} ${countryName(it)} ${it.cn || ""} ${it.g || ""} ${ENV[it.g] || ""} ${it.lc || ""} ${it.a || ""} ${it.cat === "view" ? "вид" : it.cat === "road" ? "дорога" : ""} ${(it.t || []).map(t => topicName(t) + " " + t).join(" ")}`);
+  document.querySelectorAll(".tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.mode === mode));
+  buildFacets();
+  applyFilter();
+  syncControls();
+  await pollHealth();
+  if (mode === "wall") { $("#loading").hidden = true; return; }
+  const lastUrl = store.get("okno.last", "");
+  const last = lastUrl && ITEMS.find(it => it.u === lastUrl);
+  if (last && listable(last) && !isDead(last)) play(last); else randomPick();
+})();
+</script>
+</body>
+</html>
