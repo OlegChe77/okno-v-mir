@@ -183,6 +183,21 @@
     background: var(--accent); color: #1b1203; font-weight: 700; display: inline-flex; gap: 6px; align-items: center; }
 
   .osd-src { color: var(--muted); font-size: 12px; margin-top: 3px; }
+  /* выбор варианта ссылки: кнопка «вариант N из M» и список под ней */
+  .osd-var { pointer-events: auto; margin-left: 6px; padding: 1px 8px; border: 1px solid var(--line); border-radius: 99px;
+    background: rgba(255, 255, 255, .06); color: var(--text); font: inherit; font-size: 12px; cursor: pointer; }
+  .osd-var:hover, .osd-var[aria-expanded=true] { border-color: var(--accent); }
+  .osd.fade .osd-var, .osd.fade .vmenu { pointer-events: none; }
+  .vmenu { pointer-events: auto; margin-top: 8px; display: grid; gap: 2px; max-height: 50vh; overflow-y: auto; }
+  .vmenu[hidden] { display: none; }
+  .vopt { display: grid; grid-template-columns: 8px auto 1fr auto; align-items: center; gap: 8px; padding: 6px 8px; border: 0;
+    border-radius: 6px; background: transparent; color: var(--text); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+  .vopt:hover { background: rgba(255, 255, 255, .1); }
+  .vopt.cur { background: rgba(255, 255, 255, .14); }
+  .vopt b { font-weight: 600; white-space: nowrap; }
+  .vopt span { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .vopt em { font-style: normal; font-size: 12px; color: var(--muted); white-space: nowrap; }
+  .vopt em.ok { color: var(--ok); } .vopt em.bad { color: var(--bad); }
   /* панель управления на экране плеера */
   .pbar { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; align-items: center; gap: 8px;
     padding: 6px 10px; border-radius: 99px; background: rgba(5, 8, 14, .78); backdrop-filter: blur(6px);
@@ -325,7 +340,7 @@
       <iframe id="yt" title="YouTube" hidden allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>
       <div class="wall" id="wall"></div>
       <div class="loading" id="loading"><span>Загрузка…</span></div>
-      <div class="osd fade" id="osd"><div class="osd-kind" id="osdKind"></div><div class="osd-name" id="osdName"></div><div class="osd-sub" id="osdSub"></div><div class="osd-src" id="osdSrc"></div></div>
+      <div class="osd fade" id="osd"><div class="osd-kind" id="osdKind"></div><div class="osd-name" id="osdName"></div><div class="osd-sub" id="osdSub"></div><div class="osd-src"><span id="osdSrc"></span><button class="osd-var" id="osdVar" hidden aria-haspopup="true" aria-expanded="false" title="Выбрать вариант ссылки"></button></div><div class="vmenu" id="vmenu" role="menu" hidden></div></div>
       <div class="msg" id="msg"></div>
       <div class="badge fade" id="badge" aria-hidden="true"><svg class="icon"><use href="#i-mute"/></svg></div>
       <div class="pbar" id="pbar">
@@ -440,10 +455,14 @@ function vlist(it) {
   return it._v;
 }
 const vDead = v => !!(dead[v.u] && Date.now() - dead[v.u] < DAY) || health.dv.has(v.id + ":" + v.vi);
-function pickVariant(it, tried) {
-  const vs = vlist(it), first = health.pref[it.id] ?? 0;
-  const order = [first, ...vs.keys()].filter((i, k, a) => a.indexOf(i) === k);
-  for (const i of order) if (!tried.has(i) && !vDead(vs[i])) {
+// Пока программа открыта: на каком варианте у канала пошло видео (или какой выбран вручную) и чем кончались попытки.
+// В localStorage не пишем — после перезапуска перебор снова с первого.
+const sessV = {}, vStat = {};
+// first — с какого варианта начинать; force — запустить его, даже если он помечен как неработающий (ручной выбор)
+function pickVariant(it, tried, first = sessV[it.id] ?? health.pref[it.id] ?? 0, force = false) {
+  const vs = vlist(it);
+  const order = [first, ...vs.keys()].filter((i, k, a) => a.indexOf(i) === k && vs[i]);
+  for (const i of order) if (!tried.has(i) && ((force && i === first) || !vDead(vs[i]))) {
     if (health.ts.has(it.id + ":" + i)) vs[i].x = "ts";  // сырой MPEG-TS без плейлиста — играет mpegts.js
     return vs[i];
   }
@@ -452,15 +471,28 @@ function pickVariant(it, tried) {
 function isDead(it) { return !health.ok.has(it.id) && (health.bad.has(it.id) || vlist(it).every(vDead)); }
 function markDead(v) {
   dead[v.u] = Date.now(); store.set("okno.dead", dead);
+  vStat[v.id + ":" + v.vi] = "bad";
+  if (sessV[v.id] === v.vi) delete sessV[v.id];  // запомненный перестал работать — дальше перебор с первого
   const it = ITEMS[v.id];
   if (vlist(it).every(vDead)) health.ok.delete(it.id);
   paintRow(it);
+  syncVMenu(v);
 }
 function markOk(v) {
   if (dead[v.u]) { delete dead[v.u]; store.set("okno.dead", dead); }
   health.dv.delete(v.id + ":" + v.vi);
+  vStat[v.id + ":" + v.vi] = "ok"; sessV[v.id] = v.vi;
   const it = ITEMS[v.id];
   health.ok.add(it.id); health.bad.delete(it.id); paintRow(it);
+  syncVMenu(v);
+}
+function syncVMenu(v) { if (current && v.id === current.id && !$("#vmenu").hidden) renderVMenu(); }
+// Состояние варианта для меню: «ok» — работает, «bad» — не ответил, "" — не проверен
+function vState(v) {
+  const k = v.id + ":" + v.vi;
+  if (vStat[k]) return vStat[k];
+  if (vDead(v)) return "bad";
+  return health.ok.has(v.id) && (health.pref[v.id] ?? 0) === v.vi ? "ok" : "";
 }
 function dotClass(it) { return health.ok.has(it.id) ? "ok" : isDead(it) ? "bad" : ""; }
 function src(it, url) {
@@ -616,12 +648,58 @@ function showOsd(it) {
   $("#osdName").textContent = it.n;
   $("#osdSub").textContent = subline(it);
   const v = curV && curV.id === it.id ? curV : it, n = vlist(it).length;
-  $("#osdSrc").textContent = "Источник: " + ((v.s || []).join(", ") || "—") + (n > 1 ? ` · вариант ${v.vi + 1} из ${n}` : "");
+  $("#osdSrc").textContent = "Источник: " + ((v.s || []).join(", ") || "—") + (n > 1 ? " ·" : "");
+  const vb = $("#osdVar");
+  vb.hidden = n < 2;
+  vb.textContent = `вариант ${v.vi + 1} из ${n} ▾`;
+  if (n < 2) closeVMenu(); else if (!$("#vmenu").hidden) renderVMenu();
   const osd = $("#osd");
   osd.classList.remove("fade");
   clearTimeout(osdTimer);
+  if (!$("#vmenu").hidden || osd.matches(":hover")) return;  // пока выбирают вариант, OSD не прячем
   osdTimer = setTimeout(() => osd.classList.add("fade"), 5000);
 }
+const V_LABEL = { ok: "работает", bad: "не ответил", "": "не проверен" };
+function renderVMenu() {
+  const it = current, m = $("#vmenu");
+  if (!it) return closeVMenu();
+  m.replaceChildren(...vlist(it).map(v => {
+    const st = vState(v), b = document.createElement("button"), on = curV === v;
+    b.className = "vopt" + (on ? " cur" : "");
+    b.setAttribute("role", "menuitem");
+    b.dataset.vi = v.vi;
+    const dot = document.createElement("i"), name = document.createElement("b"), s = document.createElement("span"), lab = document.createElement("em");
+    dot.className = "dot " + st;
+    name.textContent = "Вариант " + (v.vi + 1);
+    s.textContent = (v.s || []).join(", ") || "—";
+    lab.className = st;
+    lab.textContent = on && !st ? "включается…" : V_LABEL[st] + (on ? " · сейчас" : "");
+    b.append(dot, name, s, lab);
+    return b;
+  }));
+}
+function openVMenu() {
+  if (!current) return;
+  renderVMenu();
+  $("#vmenu").hidden = false; $("#osdVar").setAttribute("aria-expanded", "true");
+  clearTimeout(osdTimer); $("#osd").classList.remove("fade");
+}
+function closeVMenu() {
+  if ($("#vmenu").hidden) return;
+  $("#vmenu").hidden = true; $("#osdVar").setAttribute("aria-expanded", "false");
+  if (current) showOsd(current);
+}
+$("#osdVar").onclick = e => { e.stopPropagation(); $("#vmenu").hidden ? openVMenu() : closeVMenu(); };
+$("#vmenu").onclick = e => {
+  const b = e.target.closest(".vopt");
+  if (!b || !current) return;
+  e.stopPropagation();
+  closeVMenu();
+  play(current, 1, true, +b.dataset.vi);
+};
+$("#osd").addEventListener("mouseenter", () => clearTimeout(osdTimer));
+$("#osd").addEventListener("mouseleave", () => { if (current) showOsd(current); });
+document.addEventListener("pointerdown", e => { if (!e.target.closest("#osd")) closeVMenu(); });
 function stopPlayback() {
   clearTimeout(watchdog);
   if (hls) { hls.destroy(); hls = null; }
@@ -698,19 +776,23 @@ function tryPlay(el) {
   });
 }
 
-function play(it, dir = 1, byUser = false) {
+function play(it, dir = 1, byUser = false, forceVi = null) {
   if (!it || !allowed(it)) return;
   if (byUser) skipChain = 0;
+  if (forceVi != null) sessV[it.id] = forceVi;  // ручной выбор запоминается до закрытия программы
   current = it; curV = null;
   const tok = ++playToken;
   store.set("okno.last", it.u);
   const tried = new Set();
+  // Первая попытка — выбранный вручную или запомненный вариант; если он не пошёл, перебор с первого
+  let first = forceVi ?? sessV[it.id] ?? health.pref[it.id] ?? 0, force = forceVi != null;
   highlight(); syncFavBtn(); msg("Подключаюсь…");
 
   const launch = () => {
     stopPlayback();
     $("#unmute").hidden = true;
-    const v = pickVariant(it, tried);
+    const v = pickVariant(it, tried, first, force);
+    first = 0; force = false;
     if (!v) return giveUp();
     tried.add(v.vi); curV = v;
     showOsd(it);
@@ -719,7 +801,7 @@ function play(it, dir = 1, byUser = false) {
     const fail = () => {
       if (tok !== playToken) return;
       clearTimeout(watchdog); markDead(v);
-      if (pickVariant(it, tried)) { msg("Источник не ответил — пробую другой…"); setTimeout(() => { if (tok === playToken) launch(); }, 50); return; }
+      if (pickVariant(it, tried, 0)) { msg("Источник не ответил — пробую другой…"); setTimeout(() => { if (tok === playToken) launch(); }, 50); return; }
       giveUp();
     };
     // Ждём не дольше 8 с тишины (YouTube — 15 с); каждый загруженный манифест/сегмент продлевает ожидание, но не дольше 20 с всего.
@@ -797,7 +879,7 @@ let tiles = [];
 function destroyWall() { tiles.forEach(t => { clearTimeout(t.timer); t.hls && t.hls.destroy(); }); tiles = []; wall.innerHTML = ""; }
 function buildWall() {
   destroyWall(); stopPlayback(); current = null; curV = null; syncControls();
-  $("#osd").classList.add("fade"); msg("");
+  closeVMenu(); $("#osd").classList.add("fade"); msg("");
   const pool = view.filter(it => it.k === "cam" && it.x !== "yt" && !isDead(it));
   for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
   pool.sort((a, b) => health.ok.has(b.id) - health.ok.has(a.id));
@@ -1023,14 +1105,14 @@ function toggleFull() {
   else $("#screen").requestFullscreen?.().catch(() => {});
 }
 $("#bFull").onclick = toggleFull;
-$("#screen").addEventListener("dblclick", e => { if (!e.target.closest("#pbar")) toggleFull(); });
+$("#screen").addEventListener("dblclick", e => { if (!e.target.closest("#pbar, #osd")) toggleFull(); });
 $("#screen").addEventListener("mousemove", () => { if (current && mode !== "wall") { showOsd(current); flashBar(); } });
 $("#screen").addEventListener("pointerdown", () => { if (mode !== "wall") flashBar(); });
 
 document.addEventListener("keydown", e => {
   if (!ageBox.hidden) return;
   const typing = /^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName);
-  if (e.key === "Escape") { e.target.blur?.(); return; }
+  if (e.key === "Escape") { closeVMenu(); e.target.blur?.(); return; }
   if (typing) return;
   const k = e.key.toLowerCase();
   if (e.key === "ArrowDown" || e.key === "PageDown") { e.preventDefault(); skipChain = 0; step(1); }
