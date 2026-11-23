@@ -529,8 +529,10 @@ class Health:
         now = time.time()
         todo, seen = [], set()
         for it in items:
+            if it.get("sch"):  # камеры по расписанию (зоопарки): ночью выключены, не метим мёртвыми
+                continue
             for v in variants(it):
-                if v["x"] == "yt" or v["u"] in seen:
+                if v["x"] in ("yt", "link") or v["u"] in seen:
                     continue
                 seen.add(v["u"])
                 st = self.state.get(v["u"], [0, 0])

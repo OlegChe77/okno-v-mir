@@ -322,9 +322,16 @@
       <select id="country" aria-label="Страна"></select>
       <select id="topic" aria-label="Тема"></select>
       <select id="cat" aria-label="Тип камер">
-        <option value="">Все камеры: виды и дороги</option>
+        <option value="">Все камеры</option>
         <option value="view">Виды: природа, города, порты, пляжи</option>
         <option value="road">Дороги</option>
+        <option value="animal">Животные: зоопарки и заповедники</option>
+        <option value="feeder">Кормушки, гнёзда и дворы</option>
+        <option value="under">Подводный мир: рифы, аквариумы</option>
+        <option value="volcano">Вулканы и гейзеры</option>
+        <option value="sky">Небо: сияние, звёзды, шторма</option>
+        <option value="space">Космос: МКС, спутники, Солнце</option>
+        <option value="explore">explore.org: ссылки на сайт</option>
       </select>
       <label class="chk"><input type="checkbox" id="onlyOk" checked> Скрывать неработающие</label>
       <label class="chk" title="В России YouTube замедлен, поэтому по умолчанию показываем прямые снимки и потоки"><input type="checkbox" id="withYt"> Добавить YouTube-трансляции (в РФ медленно)</label>
@@ -407,7 +414,9 @@ function countryName(it) {
 const ENV = { traffic: "дорога", landmark: "достопримечательность", lake: "озеро", highway: "трасса",
   city: "город", beach: "пляж", port: "порт", ferry: "паром", volcano: "вулкан", wildlife: "животные",
   aurora: "горы и небо", nature: "природа", dam: "река", stadium: "стадион", live: "прямой эфир",
-  landscape: "пейзаж", mountain: "горы", coast: "побережье", forest: "лес", water: "вода", construction: "стройка" };
+  landscape: "пейзаж", zoo: "зоопарк", nest: "гнездо", feeder: "кормушка", farm: "ферма и приют", reef: "риф",
+  aquarium: "аквариум", iss: "МКС", launch: "запуски", geyser: "гейзер",
+  safari: "сафари", waterfall: "водопад", glacier: "ледник", storm: "шторм", stars: "звёздное небо", sea: "море", manatee: "ламантины", aurora: "северное сияние", mountain: "горы", coast: "побережье", forest: "лес", water: "вода", construction: "стройка" };
 // Темы: у ТВ — категории iptv-org, у камер — подвид (город, пляж, порт, горы, дорога…)
 const TOPICS = {
   general: "Общие", news: "Новости", sports: "Спорт", movies: "Кино", series: "Сериалы", music: "Музыка",
@@ -417,7 +426,10 @@ const TOPICS = {
   family: "Семья", travel: "Путешествия", cooking: "Кулинария", public: "Общественное", auto: "Авто",
   science: "Наука", weather: "Погода", relax: "Релакс", interactive: "Интерактив", religious: "Религия",
   road: "Камеры: дорога", city: "Камеры: город", beach: "Камеры: пляж", port: "Камеры: порт", ferry: "Камеры: паром",
-  volcano: "Камеры: вулкан", wildlife: "Камеры: животные", mountain: "Камеры: горы и небо", nature: "Камеры: природа",
+  volcano: "Камеры: вулкан", wildlife: "Камеры: животные", zoo: "Камеры: зоопарк", nest: "Камеры: гнёзда птиц", feeder: "Камеры: кормушки", farm: "Камеры: фермы и приюты",
+  reef: "Камеры: рифы", aquarium: "Камеры: аквариумы", iss: "Космос: МКС",
+  launch: "Космос: запуски", geyser: "Камеры: гейзеры", safari: "Камеры: сафари и водопои", waterfall: "Камеры: водопады",
+  glacier: "Камеры: ледники", storm: "Камеры: шторма", stars: "Камеры: звёздное небо", sea: "Камеры: море", manatee: "Камеры: ламантины", aurora: "Камеры: северное сияние", mountain: "Камеры: горы и небо", nature: "Камеры: природа",
   dam: "Камеры: река и плотина", stadium: "Камеры: стадион", landmark: "Камеры: достопримечательности",
   know: "Познавательное", adult: "18+", lake: "Камеры: озеро", live: "Камеры: прямой эфир (YouTube)", landscape: "Камеры: пейзаж", construction: "Камеры: стройка",
 };
@@ -470,7 +482,7 @@ function pickVariant(it, tried, first = sessV[it.id] ?? health.pref[it.id] ?? 0,
 }
 function isDead(it) { return !health.ok.has(it.id) && (health.bad.has(it.id) || vlist(it).every(vDead)); }
 function markDead(v) {
-  dead[v.u] = Date.now(); store.set("okno.dead", dead);
+  if (!ITEMS[v.id].sch) { dead[v.u] = Date.now(); store.set("okno.dead", dead); }  // sch: эфир по расписанию, на сутки не прячем
   vStat[v.id + ":" + v.vi] = "bad";
   if (sessV[v.id] === v.vi) delete sessV[v.id];  // запомненный перестал работать — дальше перебор с первого
   const it = ITEMS[v.id];
@@ -511,6 +523,8 @@ function subline(it) {
     if (it.lc && it.lc !== parts[0] && !it.lc.includes(it.n)) parts.push(it.lc);
     if (it.g) parts.push(ENV[it.g] || it.g);
     if (it.a) parts.push(it.a);
+    if (it.x === "link") parts.push("откроется сайт");
+    if (it.sch) parts.push("не круглосуточно");
   }
   return parts.join(" · ");
 }
@@ -524,7 +538,7 @@ function passBase(it, kind, cat) {
   if (mode === "fav") return isFav(it);
   if (kind && it.k !== kind) return false;
   if (it.k !== "cam") return true;
-  if (cat && it.cat !== cat) return false;
+  if (cat ? it.cat !== cat : it.cat === "explore") return false;  // explore.org — только в своём разделе
   return withYt.checked || it.x !== "yt";
 }
 const hasTopic = (it, t) => !t || (it.t && it.t.includes(t));
@@ -587,6 +601,7 @@ function renderList() {
   if (!view.length) {
     list.innerHTML = mode === "fav" && !favs.size
       ? `<li class="empty">В избранном пока пусто. Нажмите звёздочку ☆ рядом с каналом или кнопку «В избранное» под плеером (клавиша S).</li>`
+      : catSel.value && mode !== "tv" && mode !== "fav" && !withYt.checked && YT_SECTIONS.includes(catSel.value) ? `<li class="empty">В этом разделе почти все камеры — трансляции YouTube. Поставьте галочку «Добавить YouTube-трансляции».</li>`
       : `<li class="empty">${ITEMS.length ? "Ничего не найдено. Попробуйте другую страну или тему, либо снимите галочку «Скрывать неработающие»." : "Каталог загружается…"}</li>`;
     return;
   }
@@ -612,6 +627,7 @@ list.addEventListener("click", e => {
   if (!li) return;
   const it = ITEMS[+li.dataset.id];
   if (e.target.closest(".fv")) { toggleFav(it); return; }
+  if (it.x === "link") { openLink(it); return; }
   if (mode === "wall") setMode(it.k === "tv" ? "tv" : "cam", false);
   play(it, 1, true);
 });
@@ -643,8 +659,10 @@ function msg(t) {
   $("#loading").hidden = !ld;
   $("#msg").textContent = ld ? "" : (t || "");
 }
+const CAT_KIND = { animal: "Камера животных", feeder: "Кормушка, гнездо или двор", under: "Подводная камера", volcano: "Вулкан",
+  sky: "Небо", space: "Космос" };
 function showOsd(it) {
-  $("#osdKind").textContent = it.k === "tv" ? "Телеканал" : it.cat === "road" ? "Дорожная камера" : "Видовая камера";
+  $("#osdKind").textContent = it.k === "tv" ? "Телеканал" : it.cat === "road" ? "Дорожная камера" : CAT_KIND[it.cat] || "Видовая камера";
   $("#osdName").textContent = it.n;
   $("#osdSub").textContent = subline(it);
   const v = curV && curV.id === it.id ? curV : it, n = vlist(it).length;
@@ -765,9 +783,12 @@ function startStill(el, it, onOk, onFail) {
   load();
   return h;
 }
+const YT_SECTIONS = ["feeder", "under", "sky"];
 function ytSrc(it) {
-  const id = new URL(it.u).searchParams.get("v");
-  return `https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}?autoplay=1&mute=1&playsinline=1&rel=0&enablejsapi=1`;
+  const q = new URL(it.u).searchParams, ch = q.get("channel");
+  // ?channel=UC… — «текущий эфир канала» (адрес трансляции не меняется, даже если её перезапустили)
+  const base = ch ? `live_stream?channel=${encodeURIComponent(ch)}&` : `${encodeURIComponent(q.get("v"))}?`;
+  return `https://www.youtube-nocookie.com/embed/${base}autoplay=1&mute=1&playsinline=1&rel=0&enablejsapi=1`;
 }
 function tryPlay(el) {
   const p = el.play();
@@ -776,8 +797,11 @@ function tryPlay(el) {
   });
 }
 
+// Раздел «explore.org»: потока нет (правила сайта запрещают ретрансляцию), только страница на сайте
+function openLink(it) { window.open(it.u, "_blank", "noopener"); }
 function play(it, dir = 1, byUser = false, forceVi = null) {
   if (!it || !allowed(it)) return;
+  if (it.x === "link") return byUser ? openLink(it) : undefined;
   if (byUser) skipChain = 0;
   if (forceVi != null) sessV[it.id] = forceVi;  // ручной выбор запоминается до закрытия программы
   current = it; curV = null;
@@ -837,7 +861,7 @@ function nextPlayable(dir) {
   let i = current ? pool.indexOf(current) : -1;
   for (let n = 0; n < pool.length; n++) {
     i = (i + dir + pool.length) % pool.length;
-    if (!isDead(pool[i])) return pool[i];
+    if (!isDead(pool[i]) && pool[i].x !== "link") return pool[i];
   }
   return null;
 }
@@ -868,7 +892,7 @@ list.addEventListener("mouseover", e => {
 list.addEventListener("mouseleave", () => clearTimeout(hoverT));
 function randomPick() {
   if (mode === "wall") return buildWall();
-  const pool = (view.length || mode === "fav" ? view : ITEMS.filter(listable)).filter(it => !isDead(it) && it !== current);
+  const pool = (view.length || mode === "fav" ? view : ITEMS.filter(listable)).filter(it => !isDead(it) && it !== current && it.x !== "link");
   const good = pool.filter(it => health.ok.has(it.id));
   const from = good.length > 20 ? good : pool;
   if (from.length) play(from[Math.floor(Math.random() * from.length)], 1, true);
@@ -880,7 +904,7 @@ function destroyWall() { tiles.forEach(t => { clearTimeout(t.timer); t.hls && t.
 function buildWall() {
   destroyWall(); stopPlayback(); current = null; curV = null; syncControls();
   closeVMenu(); $("#osd").classList.add("fade"); msg("");
-  const pool = view.filter(it => it.k === "cam" && it.x !== "yt" && !isDead(it));
+  const pool = view.filter(it => it.k === "cam" && it.x !== "yt" && it.x !== "link" && !isDead(it));
   for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
   pool.sort((a, b) => health.ok.has(b.id) - health.ok.has(a.id));
   if (!pool.length) { msg("Нет камер для стены — выберите другую страну или тему."); return; }
@@ -1224,7 +1248,7 @@ function showUpdate(u) {
     $("#health").textContent = "Не удалось загрузить каталог: " + e.message + ". Проверьте интернет и перезапустите.";
     return;
   }
-  for (const it of ITEMS) it._s = norm(`${it.n} ${countryName(it)} ${it.cn || ""} ${it.g || ""} ${ENV[it.g] || ""} ${it.lc || ""} ${it.a || ""} ${it.cat === "view" ? "вид" : it.cat === "road" ? "дорога" : ""} ${(it.t || []).map(t => topicName(t) + " " + t).join(" ")}`);
+  for (const it of ITEMS) it._s = norm(`${it.n} ${countryName(it)} ${it.cn || ""} ${it.g || ""} ${ENV[it.g] || ""} ${it.lc || ""} ${it.a || ""} ${it.cat === "view" ? "вид" : it.cat === "road" ? "дорога" : it.cat === "animal" ? "животные зоопарк" : it.cat === "feeder" ? "кормушка гнездо птицы животные" : it.cat === "under" ? "подводный мир море океан риф аквариум" : it.cat === "volcano" ? "вулкан гейзер" : it.cat === "sky" ? "небо сияние звезды шторм" : it.cat === "space" ? "космос спутник земля солнце мкс" : it.cat === "explore" ? "животные ссылка сайт" : ""} ${(it.t || []).map(t => topicName(t) + " " + t).join(" ")}`);
   document.querySelectorAll(".tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.mode === mode));
   buildFacets();
   applyFilter();
