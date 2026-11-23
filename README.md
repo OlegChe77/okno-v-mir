@@ -72,7 +72,7 @@
 Программа ничего не хранит и не ретранслирует сама: она собирает ссылки из открытых списков и показывает потоки с их собственных серверов.
 
 - ТВ: [iptv-org/iptv](https://github.com/iptv-org/iptv) (страны, языки, категории, база потоков), [Free-TV/IPTV](https://github.com/Free-TV/IPTV), русскоязычные списки на GitHub (Dimonovich, Karnei4, LoganetX, ngrch, troypaha, tv-rus), открытые списки для взрослых (adultiptv.net, THEMMMINAT/xxx-IPTV, Izanami1618/AdultChannels).
-- Камеры: [Live-Environment-Streams](https://github.com/stuchapin909/Live-Environment-Streams) (дорожные), EarthCam, Open-Eagle-Eye, [lukarne](https://github.com/storagebits/lukarne) (YouTube 24/7), по ключу — Windy Webcams и OpenWebcamDB.
+- Камеры: [Live-Environment-Streams](https://github.com/stuchapin909/Live-Environment-Streams) (дорожные), EarthCam, Open-Eagle-Eye, [lukarne](https://github.com/storagebits/lukarne) (YouTube 24/7), списки камер на GitHub ([Dimonovich](https://github.com/Dimonovich/TV), [mirostep/webcams](https://github.com/mirostep/webcams), [WorldCam](https://github.com/Belfagor2005/WorldCam): мир, Россия, Италия, США), по ключу — Windy Webcams и OpenWebcamDB.
 - Плееры в браузере: [hls.js](https://github.com/video-dev/hls.js), [mpegts.js](https://github.com/xqq/mpegts.js).
 
 Каналы и камеры принадлежат их владельцам. Часть ссылок со временем перестаёт работать: это нормально для бесплатных списков, программа такие скрывает. Каналы 18+ предназначены только для совершеннолетних.

@@ -435,8 +435,49 @@ def load_extra():
 
 
 # Списки камер в формате m3u: (название, файл кэша, ссылка). Группа = «Страна 🇷🇺», название — камера.
+_WC = GH + "Belfagor2005/WorldCam/main/usr/lib/enigma2/python/Plugins/Extensions/WorldCam/Playlists/"
 CAM_LISTS = [
-    ("Dimonovich: камеры", "cam_dim.m3u", GH + "Dimonovich/TV/Dimonovich/FREE/CAMERA"),]
+    ("Dimonovich: камеры", "cam_dim.m3u", GH + "Dimonovich/TV/Dimonovich/FREE/CAMERA"),
+    ("mirostep: webcams", "cam_mirostep.m3u", GH + "mirostep/webcams/main/webcams.m3u"),
+    # WorldCam (Enigma2): строки «название###ссылка», без групп; страна — по названию
+    ("WorldCam: веб-камеры мира", "cam_wc_world.txt", _WC + "HasBahCa_WEBCAMS.txt"),
+    ("WorldCam: Россия", "cam_wc_rus.txt", _WC + "Userlist-RUS.txt"),
+    ("WorldCam: Италия", "cam_wc_italy.txt", _WC + "Italy_46_cam.txt"),
+    ("WorldCam: США", "cam_wc_usa.txt", _WC + "USA_54_cam.txt"),
+]
+# страна по умолчанию у списков без групп и без страны в названии
+_CAM_DEFAULT = {"WorldCam: Россия": "RU", "WorldCam: Италия": "IT", "WorldCam: США": "US"}
+_CAM_NAME_CC = {"Польша": "PL", "Люксембург": "LU", "Стрый": "UA", "Istanbul": "TR", "Praia": "CV",
+                 "Czech": "CZ", "Brazil": "BR", "Germany": "DE", "Poland": "PL", "Slovakia": "SK"}
+
+
+def _hash_to_m3u(text):
+    """«название###ссылка» → m3u (WorldCam)."""
+    out = ["#EXTM3U"]
+    for line in text.splitlines():
+        if "###" in line:
+            n, u = line.split("###", 1)
+            out += ["#EXTINF:-1," + n.strip(), u.strip()]
+    return "\n".join(out)
+
+
+def _cam_name_country(name, name_to_code):
+    """Страна из названия: «Country - город», «Country: город», известные города, кириллица = Россия."""
+    n = re.sub(r"^RUS Webcam\s+", "", name)
+    m = re.search(r"\(([A-Z]{2})\)\s*$", n)  # «Hamburg (DE)»
+    if m:
+        return m.group(1)
+    parts = [re.sub(r"\s*\d+$", "", p).strip() for p in re.split(r"\s+[-–]\s+|:|_", n)]
+    first = parts[0]
+    for p in parts:  # «Czech - Ratibor», «Jelsa - Croatia»
+        if p in name_to_code:
+            return name_to_code[p]
+        if p in _CAM_NAME_CC:
+            return _CAM_NAME_CC[p]
+    w = first.split(" ")[0]
+    if w in _CAM_NAME_CC:
+        return _CAM_NAME_CC[w]
+    return "RU" if re.search("[А-Яа-я]", first) else ""
 _CAM_G = [("beach", r"пляж|beach|surf|(?<!\w)море|coast"), ("port", r"(?<!\w)порт(?!\w)|(?<!\w)port(?!\w)|гавань|harbou?r"),
           ("mountain", r"гор[аыу]|горн|mountain|ski|лыж|volcan|вулкан"), ("road", r"трасс|дорог|перекр[её]с|шоссе|road|traffic|(?<!\w)мост|bridge")]
 _CAM_G = [(g, re.compile(p, re.I)) for g, p in _CAM_G]
@@ -447,14 +488,18 @@ def load_m3u_cams(cached, name_to_code, code_to_name, log=log_noop):
     for name, fname, url in CAM_LISTS:
         try:
             n0 = len(out)
-            for r in parse_m3u(cached(fname, url).decode("utf-8", "replace")):
+            body = cached(fname, url).decode("utf-8", "replace")
+            if fname.endswith(".txt"):
+                body = _hash_to_m3u(body)
+            for r in parse_m3u(body):
                 grp = r["grp"].strip()
                 if RU_SKIP_GRP.search(grp) or RU_SKIP_URL.search(r["u"]) or not r["u"].startswith("http"):
                     continue
                 x = guess_type(r["u"])
                 if x == "dash":
                     continue
-                code = flag_country(grp) or name_to_code.get(re.sub(r"\s*[🇦-🇿]{2}\s*$", "", grp), "")
+                code = flag_country(grp) or name_to_code.get(re.sub(r"\s*[🇦-🇿]{2}\s*$", "", grp), "") \
+                    or _cam_name_country(r["n"], name_to_code) or _CAM_DEFAULT.get(name, "")
                 g = next((g for g, rx in _CAM_G if rx.search(r["n"])), "city")
                 cam = {"k": "cam", "cat": "road" if g == "road" else "view", "n": r["n"], "c": code,
                        "cn": code_to_name.get(code, ""), "u": r["u"], "x": x, "g": g, "a": name,
