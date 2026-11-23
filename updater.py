@@ -63,6 +63,24 @@ def _get(url, timeout=20):
     return urllib.request.urlopen(req, timeout=timeout, context=_ctx)
 
 
+def _news(body):
+    """Из тела релиза («## Что нового») — названия пунктов списка, коротко: жирный заголовок пункта
+    или начало текста до двоеточия/точки. Остальное (подробности, абзацы, «Установка») отбрасываем."""
+    sec = re.search(r"^#+\s*Что нового\s*$(.*?)(?=^#+\s|\Z)", str(body or ""), re.M | re.S | re.I)
+    out = []
+    for line in (sec.group(1) if sec else "").splitlines():
+        m = re.match(r"\s*[-*]\s+(.+)", line)
+        if not m:
+            continue
+        t = m.group(1).strip()
+        b = re.match(r"\*\*(.+?)\*\*", t)
+        t = b.group(1) if b else re.split(r"[:.]\s|[:.]$", t, maxsplit=1)[0]
+        t = re.sub(r"[*_`]|\[([^\]]*)\]\([^)]*\)", lambda x: x.group(1) or "", t).strip(" :.")
+        if t:
+            out.append(t[:80])
+    return out[:8]
+
+
 def check():
     """Спрашивает GitHub про последний релиз. Результат — в состоянии (см. status)."""
     with _lock:
@@ -71,10 +89,11 @@ def check():
         _state["checking"] = True
     try:
         with _get(API_URL) as r:
-            tag = str(json.loads(r.read(1_000_000).decode("utf-8")).get("tag_name", ""))
+            rel = json.loads(r.read(1_000_000).decode("utf-8"))
+        tag = str(rel.get("tag_name", ""))
         if not _ver(tag):
             raise ValueError("непонятный номер версии: " + tag[:40])
-        _state.update(latest=tag.lstrip("v"), tag=tag, error=None)
+        _state.update(latest=tag.lstrip("v"), tag=tag, error=None, news=_news(rel.get("body")))
         _log("текущая", current(), "последняя", tag)
     except Exception as e:  # нет сети, лимит GitHub и т. п. — не страшно, проверим позже
         _state["error"] = str(e)[:200]
@@ -87,6 +106,7 @@ def status():
     cur, latest = current(), _state.get("latest")
     avail = bool(latest and (_ver(latest) or ()) > (_ver(cur) or ()))
     return {"current": cur, "latest": latest if avail else None, "available": avail,
+            "news": (_state.get("news") or []) if avail else [],
             "checking": _state["checking"], "applying": _state["applying"]}
 
 

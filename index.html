@@ -33,6 +33,7 @@
   .upd .go { background: var(--accent); color: #1a1205; }
   .upd .go:disabled { opacity: .6; cursor: default; }
   .upd .later { background: none; color: var(--muted); border: 1px solid var(--line); }
+  .upd .news { flex-basis: 100%; margin: 0; font-size: 13px; color: var(--muted); }
   .upd .msg { color: var(--muted); }
   .upd .err { color: var(--bad); }
 
@@ -311,6 +312,7 @@
 
 <div class="upd" id="upd" hidden role="status">
   <span id="updText"></span>
+  <p class="news" id="updNews" hidden></p>
   <button type="button" class="btn go" id="updGo" title="Скачать новую версию, заменить файлы и перезапустить программу">Обновить</button>
   <button type="button" class="btn later" id="updLater" title="Спросить снова при следующей новой версии">Позже</button>
 </div>
@@ -1184,12 +1186,16 @@ async function checkUpdate(tries = 0) {
 }
 function showUpdate(u) {
   if (store.get("okno.updSkip", "") === u.latest) return;
-  const bar = $("#upd"), txt = $("#updText"), go = $("#updGo"), later = $("#updLater");
+  const bar = $("#upd"), txt = $("#updText"), news = $("#updNews"), go = $("#updGo"), later = $("#updLater");
   txt.innerHTML = `Доступна версия <b>${esc(u.latest)}</b> (у вас ${esc(u.current)}), обновить?`;
+  const list = (u.news || []).map(esc).join(" · ");  // названия добавленного из «Что нового» релиза
+  news.innerHTML = list ? `Что добавлено: ${list}` : "";
+  news.hidden = !list;
   bar.hidden = false;
   later.onclick = () => { store.set("okno.updSkip", u.latest); bar.hidden = true; };
   go.onclick = async () => {
     go.disabled = later.disabled = true;
+    news.hidden = true;
     txt.innerHTML = `<span class="msg">Скачиваю версию ${esc(u.latest)} и заменяю файлы…</span>`;
     try {
       const r = await fetch("/api/update/apply", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
