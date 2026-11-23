@@ -722,7 +722,53 @@ class WarmCache:
         return None
 
 
+class LiveSeq:
+    """Держит живой плейлист на одной «нумерации» сегментов.
+    Некоторые CDN (Rutube: *.rtbcdn.ru) отдают один и тот же адрес попеременно от двух
+    упаковщиков с разной нумерацией (MEDIA-SEQUENCE 898 ↔ 6212) — окнами по несколько секунд.
+    hls.js на таком скачке теряет позицию: дыры в буфере, остановки и откат видео назад.
+    Плейлист из «чужой» нумерации подменяем прошлым (hls.js просто перезапросит чуть позже),
+    а если чужая держится дольше HOLD секунд — значит, поток действительно перезапустился, принимаем её."""
+    HOLD, FORGET = 20, 60
+
+    def __init__(self):
+        self.d, self.lock = {}, threading.Lock()
+
+    @staticmethod
+    def parse(text):
+        if "#EXT-X-ENDLIST" in text or "#EXT-X-STREAM-INF" in text:
+            return None   # VOD и мастер-плейлист не проверяем
+        m = re.search(r"#EXT-X-MEDIA-SEQUENCE:\s*(\d+)", text)
+        n = sum(1 for l in text.splitlines() if l.strip() and not l.lstrip().startswith("#"))
+        t = re.search(r"#EXT-X-TARGETDURATION:\s*(\d+)", text)
+        return (int(m.group(1)) if m else 0), n, max(1, int(t.group(1)) if t else 6)
+
+    def check(self, key, text, body):
+        """True — плейлист годится (и запомнен); иначе (False, прошлое тело) для подмены."""
+        info = self.parse(text)
+        if not info:
+            return True, None
+        msn, n, td = info
+        now = time.time()
+        with self.lock:
+            prev = self.d.get(key)
+            if prev and now - prev["t"] < self.FORGET:
+                pmsn, pn, ptd = prev["info"]
+                # ожидаемое: номер не уменьшается и растёт не быстрее, чем идёт время (+ запас)
+                ahead = pmsn + max(pn, 3) + int((now - prev["t"]) / ptd) + 3
+                if not (pmsn - 1 <= msn <= ahead):
+                    bad = prev.setdefault("bad_since", now)
+                    if now - bad < self.HOLD:
+                        return False, prev["body"]
+            if len(self.d) > 200:
+                for k in [k for k, v in self.d.items() if now - v["t"] > self.FORGET]:
+                    del self.d[k]
+            self.d[key] = {"t": now, "info": info, "body": body}
+        return True, None
+
+
 WARM = WarmCache()
+LIVE = LiveSeq()
 WARM_SLOTS = threading.Semaphore(3)
 WARMING = set()
 
@@ -980,9 +1026,14 @@ class Handler(BaseHTTPRequestHandler):
         if not url.startswith(("http://", "https://")):
             return self.send_bytes(400, b"bad url", "text/plain")
         rng = self.headers.get("Range")
+        key = (url, ua or "", ref or "")
         if not rng:  # предзагруженный ответ (см. warm) — отдаём без обращения к источнику
-            hit = WARM.pop((url, ua or "", ref or ""))
+            hit = WARM.pop(key)
             if hit:
+                if "mpegurl" in hit[0]:
+                    good, old = LIVE.check(key, hit[1].decode("utf-8", "replace"), hit[1])
+                    if not good:
+                        return self.send_bytes(200, old, hit[0])
                 return self.send_bytes(200, hit[1], hit[0])
         headers = {"User-Agent": clean_ua(ua), "Accept": "*/*", "Accept-Encoding": "identity"}
         if ref:
@@ -1009,7 +1060,8 @@ class Handler(BaseHTTPRequestHandler):
                 rest = resp.read(5 * 1024 * 1024)
                 text = (first + rest).decode("utf-8", "replace")
                 body = rewrite_playlist(text, resp.url, ua, ref, adult).encode("utf-8")
-                return self.send_bytes(200, body, "application/vnd.apple.mpegurl")
+                good, old = LIVE.check(key, text, body)
+                return self.send_bytes(200, body if good else old, "application/vnd.apple.mpegurl")
 
             self.send_response(resp.status)
             self.send_header("Content-Type", ctype)
