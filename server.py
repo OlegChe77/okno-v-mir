@@ -8,6 +8,7 @@
 Запуск: python server.py   (или start.bat)
 """
 import collections
+import datetime
 import gzip
 import hashlib
 import hmac
@@ -521,6 +522,10 @@ class Health:
                     ok = len(head) > 0
         except urllib.error.HTTPError as e:
             return False, "", e.code if e.code in (403, 429, 500, 502, 503) else 0
+        except ConnectionResetError:  # в т.ч. RemoteDisconnected: bl.rutube.ru рвёт часть соединений при пачке запросов
+            return False, "", 1
+        except urllib.error.URLError as e:
+            return False, "", 1 if isinstance(e.reason, ConnectionResetError) else 0
         except Exception:
             return False, "", False
         return ok, kind, False
@@ -610,7 +615,7 @@ class UpResp:
         self.resp, self.conn, self.key, self.url = resp, conn, key, url
         self.status, self.headers = resp.status, resp.headers
 
-    def read(self, n=-1):
+    def read(self, n=None):  # None — до конца ответа (-1 у http.client ждало бы закрытия keep-alive)
         return self.resp.read(n)
 
     def release(self):
@@ -727,12 +732,51 @@ class LiveSeq:
     Некоторые CDN (Rutube: *.rtbcdn.ru) отдают один и тот же адрес попеременно от двух
     упаковщиков с разной нумерацией (MEDIA-SEQUENCE 898 ↔ 6212) — окнами по несколько секунд.
     hls.js на таком скачке теряет позицию: дыры в буфере, остановки и откат видео назад.
-    Плейлист из «чужой» нумерации подменяем прошлым (hls.js просто перезапросит чуть позже),
-    а если чужая держится дольше HOLD секунд — значит, поток действительно перезапустился, принимаем её."""
+    Плейлист из «чужой» нумерации подменяем прошлым, продлённым готовыми сегментами своей нумерации
+    (extend: у Rutube их имена предсказуемы, а сами сегменты обоих упаковщиков доступны всегда;
+    «чужие» окна бывают до 13 с — без продления буфер плеера пустеет). Если не вышло — переспрашиваем
+    источник (RETRIES), потом отдаём прошлый как есть (hls.js перезапросит чуть позже).
+    Если чужая нумерация держится дольше HOLD секунд — поток действительно перезапустился, принимаем её."""
     HOLD, FORGET = 20, 60
+    RETRIES, RETRY_PAUSE = 2, 1.0
+    BUDGET = 3.0   # секунд на всё это: hls.js ждёт плейлист не дольше 8 с
 
     def __init__(self):
         self.d, self.lock = {}, threading.Lock()
+
+    def extend(self, key, other, ua, ref, adult=False, deadline=None):
+        """Прошлый плейлист своей нумерации, продлённый сегментами, которые уже готовы (судя по `other` —
+        свежему плейлисту чужой нумерации). Новое тело (и оно запоминается) или None."""
+        with self.lock:
+            prev = self.d.get(key)
+        if not prev or not prev.get("base"):
+            return None
+        headers = {"User-Agent": clean_ua(ua), "Accept": "*/*", "Range": "bytes=0-0"}
+        if ref:
+            headers["Referer"] = ref
+
+        def exists(url):
+            if deadline and time.time() > deadline:
+                return False
+            try:
+                up = upstream_open(url, headers, timeout=max(0.5, min(3.0, deadline - time.time())) if deadline else 3.0)
+                try:
+                    up.read(4096)
+                    return up.status in (200, 206)
+                finally:
+                    up.release()
+            except Exception:
+                return False
+
+        text = extend_playlist(prev["text"], prev["base"], other, exists)
+        if not text:
+            return None
+        body = rewrite_playlist(text, prev["base"], ua, ref, adult).encode("utf-8")
+        with self.lock:
+            if self.d.get(key) is prev:
+                self.d[key] = {"t": time.time(), "info": self.parse(text), "body": body,
+                               "text": text, "base": prev["base"]}
+        return body
 
     @staticmethod
     def parse(text):
@@ -743,8 +787,9 @@ class LiveSeq:
         t = re.search(r"#EXT-X-TARGETDURATION:\s*(\d+)", text)
         return (int(m.group(1)) if m else 0), n, max(1, int(t.group(1)) if t else 6)
 
-    def check(self, key, text, body):
-        """True — плейлист годится (и запомнен); иначе (False, прошлое тело) для подмены."""
+    def check(self, key, text, body, base=None):
+        """(True, None) — плейлист годится (и запомнен); иначе (False, прошлое тело) для подмены.
+        base — адрес исходного плейлиста (нужен extend; у предзагруженного из WARM его нет)."""
         info = self.parse(text)
         if not info:
             return True, None
@@ -763,8 +808,73 @@ class LiveSeq:
             if len(self.d) > 200:
                 for k in [k for k, v in self.d.items() if now - v["t"] > self.FORGET]:
                     del self.d[k]
-            self.d[key] = {"t": now, "info": info, "body": body}
+            self.d[key] = {"t": now, "info": info, "body": body, "text": text, "base": base}
         return True, None
+
+
+SEG_TS_RE = re.compile(r"^(.*seg_)(\d{8}_\d{6})-(\d+)(\.ts(?:\?.*)?)$")  # Rutube: 360p/seg_20261123_122311-1269.ts
+PLAIN_TAGS = ("#EXTM3U", "#EXT-X-VERSION", "#EXT-X-TARGETDURATION", "#EXT-X-MEDIA-SEQUENCE", "#EXTINF")
+
+
+def _seg_info(line):
+    """(префикс, время, номер, хвост) из имени сегмента Rutube или None."""
+    m = SEG_TS_RE.match(line)
+    if not m:
+        return None
+    try:
+        return m.group(1), datetime.datetime.strptime(m.group(2), "%Y%m%d_%H%M%S"), int(m.group(3)), m.group(4)
+    except ValueError:
+        return None
+
+
+def extend_playlist(text, base, other, exists, most=3):
+    """Продолжение живого плейлиста без него самого: следующие сегменты той же нумерации угадываются по
+    имени (время начала + длительность, номер + 1) и берутся, только если уже закончены (судя по последнему
+    сегменту плейлиста другой нумерации `other` — его время идёт по тем же часам) и есть у источника (exists).
+    Только для простых плейлистов (без ключей, разрывов, byterange). -> текст или None."""
+    def simple(t):
+        lines = [l.strip() for l in t.splitlines() if l.strip()]
+        if not lines or any(l.startswith("#") and not l.startswith(PLAIN_TAGS) for l in lines):
+            return None
+        segs = [i for i, l in enumerate(lines) if not l.startswith("#")]
+        if not segs or segs[0] == 0 or any(not lines[i - 1].startswith("#EXTINF") for i in segs) \
+                or len(lines) - (segs[0] - 1) != 2 * len(segs):
+            return None
+        return lines[:segs[0] - 1], [(lines[i - 1], lines[i]) for i in segs]
+
+    mine, theirs = simple(text), simple(other)
+    if not mine or not theirs:
+        return None
+    head, pairs = mine
+    last, edge = _seg_info(pairs[-1][1]), _seg_info(theirs[1][-1][1])
+    msn = re.search(r"#EXT-X-MEDIA-SEQUENCE:\s*(\d+)", text)
+    dm, de = re.match(r"#EXTINF:\s*([\d.]+)", pairs[-1][0]), re.match(r"#EXTINF:\s*([\d.]+)", theirs[1][-1][0])
+    if not (last and edge and msn and dm and de):
+        return None
+    dur = float(dm.group(1))
+    step = max(1, round(dur))
+    done_by = edge[1] + datetime.timedelta(seconds=float(de.group(1)))  # конец самого свежего готового сегмента
+    prefix, t, n, tail = last
+    added = []
+    for _ in range(most):
+        # обычно шаг = длительности (±1 с), но бывают сбои времени у упаковщика (то же время, +10 с) — ищем шире
+        for dt in [step, step + 1, step - 1] + [d for d in range(0, 2 * step + 3) if abs(d - step) > 1]:
+            nt = t + datetime.timedelta(seconds=dt)
+            if nt + datetime.timedelta(seconds=dur) > done_by:
+                continue
+            uri = "%s%s-%d%s" % (prefix, nt.strftime("%Y%m%d_%H%M%S"), n + 1, tail)
+            if exists(urllib.parse.urljoin(base, uri)):
+                added.append((pairs[-1][0], uri))
+                t, n = nt, n + 1
+                break
+        else:
+            break
+    if not added:
+        return None
+    pairs = (pairs + added)[len(added):]
+    new_msn = int(msn.group(1)) + len(added)
+    head = [re.sub(r"(#EXT-X-MEDIA-SEQUENCE:\s*)\d+", lambda m: m.group(1) + str(new_msn), l) for l in head]
+    return "\n".join(head + [x for p in pairs for x in p]) + "\n"
 
 
 WARM = WarmCache()
@@ -786,6 +896,22 @@ def read_all(url, ua, ref, limit=8 * 1024 * 1024):
             if len(data) <= limit else None
     finally:
         up.release()
+
+
+def reread_playlist(url, ua, ref):
+    """Тот же плейлист ещё раз (для LiveSeq): (текст, итоговый адрес) или None."""
+    try:
+        res = read_all(url, ua, ref, limit=5 * 1024 * 1024)
+    except Exception:
+        return None
+    if not res:
+        return None
+    data = res[1]
+    if data[:2] == GZIP_MAGIC:
+        data = gunzip_partial(data)
+    if not data.lstrip().startswith(b"#EXTM3U"):
+        return None
+    return data.decode("utf-8", "replace"), res[2]
 
 
 def next_in_playlist(text, base):
@@ -976,11 +1102,12 @@ class Handler(BaseHTTPRequestHandler):
             if path in ("/help", "/help.html"):
                 with open(os.path.join(ROOT, "help.html"), "rb") as f:
                     return self.send_bytes(200, f.read(), "text/html; charset=utf-8")
-            if path == "/hls.min.js":
-                data = cached("hls.min.js", HLS_JS_URL, max_age=3650 * DAY)
-                return self.send_bytes(200, data, "application/javascript")
-            if path == "/mpegts.min.js":
-                data = cached("mpegts.js", MPEGTS_JS_URL, max_age=3650 * DAY)
+            if path in ("/hls.min.js", "/mpegts.min.js"):
+                name, src = ("hls.min.js", HLS_JS_URL) if path == "/hls.min.js" else ("mpegts.js", MPEGTS_JS_URL)
+                try:
+                    data = cached(name, src, max_age=3650 * DAY)
+                except Exception:  # первый запуск без сети: ответить, а не рвать соединение
+                    return self.send_bytes(503, b"// no network", "application/javascript")
                 return self.send_bytes(200, data, "application/javascript")
             if path == "/api/catalog":
                 CATALOG.ready.wait(180)
@@ -1029,11 +1156,8 @@ class Handler(BaseHTTPRequestHandler):
         key = (url, ua or "", ref or "")
         if not rng:  # предзагруженный ответ (см. warm) — отдаём без обращения к источнику
             hit = WARM.pop(key)
-            if hit:
-                if "mpegurl" in hit[0]:
-                    good, old = LIVE.check(key, hit[1].decode("utf-8", "replace"), hit[1])
-                    if not good:
-                        return self.send_bytes(200, old, hit[0])
+            # плейлист из «чужой» нумерации (см. LiveSeq) не отдаём, а идём к источнику — ниже с повтором
+            if hit and ("mpegurl" not in hit[0] or LIVE.check(key, hit[1].decode("utf-8", "replace"), hit[1])[0]):
                 return self.send_bytes(200, hit[1], hit[0])
         headers = {"User-Agent": clean_ua(ua), "Accept": "*/*", "Accept-Encoding": "identity"}
         if ref:
@@ -1060,7 +1184,25 @@ class Handler(BaseHTTPRequestHandler):
                 rest = resp.read(5 * 1024 * 1024)
                 text = (first + rest).decode("utf-8", "replace")
                 body = rewrite_playlist(text, resp.url, ua, ref, adult).encode("utf-8")
-                good, old = LIVE.check(key, text, body)
+                good, old = LIVE.check(key, text, body, resp.url)
+                deadline = time.time() + LIVE.BUDGET
+                for attempt in range(LIVE.RETRIES + 1):
+                    if good:
+                        break
+                    # «чужая» нумерация: продлеваем свою готовыми сегментами, не вышло — переспрашиваем источник
+                    ext = LIVE.extend(key, text, ua, ref, adult, deadline)
+                    if ext:
+                        body, good = ext, True
+                        break
+                    if attempt == LIVE.RETRIES or time.time() + LIVE.RETRY_PAUSE > deadline:
+                        break
+                    time.sleep(LIVE.RETRY_PAUSE)
+                    again = reread_playlist(url, ua, ref)
+                    if not again:
+                        break
+                    text, final = again
+                    body = rewrite_playlist(text, final, ua, ref, adult).encode("utf-8")
+                    good, old = LIVE.check(key, text, body, final)
                 return self.send_bytes(200, body if good else old, "application/vnd.apple.mpegurl")
 
             self.send_response(resp.status)
@@ -1095,7 +1237,8 @@ def restart_program():
     if fn:
         return fn()
     if sys.platform == "win32":  # запуск из консоли: python server.py
-        updater.spawn_relaunch(sys.executable, os.path.join(ROOT, "server.py"), hidden=False)
+        # путь в кавычках: Start-Process отдаёт ArgumentList строкой, а в пути к программе бывают пробелы
+        updater.spawn_relaunch(sys.executable, '"%s"' % os.path.join(ROOT, "server.py"), hidden=False)
         os._exit(0)
     os.execv(sys.executable, [sys.executable] + sys.argv)
 

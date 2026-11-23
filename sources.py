@@ -662,7 +662,8 @@ def merge(items):
              if it["k"] == "tv" and it.get("c") == "RU" and not it.get("ad") and name_key(it["n"])}
     kept = []
     for it in final:
-        if it["k"] == "tv" and it.get("c") in KNOW_RU_LIKE and not it.get("ad") and name_key(it["n"]) in ru_by                 and know_rank(dict(it, c="RU")) is not None:
+        if it["k"] == "tv" and it.get("c") in KNOW_RU_LIKE and not it.get("ad") and name_key(it["n"]) in ru_by \
+                and know_rank(dict(it, c="RU")) is not None:
             _absorb(ru_by[name_key(it["n"])], it)
             continue
         kept.append(it)
